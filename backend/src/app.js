@@ -9,7 +9,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: env.clientUrl
+    origin: [env.clientUrl, "http://localhost:5174"]
   })
 );
 app.use(helmet());
