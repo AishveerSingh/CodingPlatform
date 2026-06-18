@@ -1,11 +1,14 @@
 import { Router } from "express";
 import {
+  changeCurrentUserPassword,
+  getCurrentUser,
   getUserById,
   getUsers,
   loginAdmin,
   loginStudent,
   registerAdmin,
-  registerStudent
+  registerStudent,
+  updateCurrentUser
 } from "../controllers/user.controller.js";
 import { requireAuth, requireRole } from "../middleware/auth.middleware.js";
 
@@ -15,6 +18,10 @@ userRouter.post("/admin-register", registerAdmin);
 userRouter.post("/admin-login", loginAdmin);
 userRouter.post("/student-register", registerStudent);
 userRouter.post("/student-login", loginStudent);
+
+userRouter.get("/me", requireAuth, getCurrentUser);
+userRouter.put("/me", requireAuth, updateCurrentUser);
+userRouter.put("/me/password", requireAuth, changeCurrentUserPassword);
 
 userRouter.get("/", requireAuth, requireRole("admin"), getUsers);
 userRouter.get("/:userId", requireAuth, requireRole("admin"), getUserById);

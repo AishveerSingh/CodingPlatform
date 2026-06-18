@@ -1,31 +1,5 @@
 import { pool } from "../config/db.js";
-
-function evaluateSubmission({ sourceCode, language, difficulty }) {
-  const normalized = sourceCode.toLowerCase();
-  const forCount = (normalized.match(/\bfor\b/g) || []).length;
-  const whileCount = (normalized.match(/\bwhile\b/g) || []).length;
-  const hasReturn = normalized.includes("return");
-  const hasFunctionLike =
-    normalized.includes("function") ||
-    normalized.includes("def ") ||
-    normalized.includes("public static") ||
-    normalized.includes("int main") ||
-    normalized.includes("=>");
-
-  if ((difficulty === "hard" || difficulty === "medium") && forCount + whileCount >= 3) {
-    return "time_limit";
-  }
-
-  if (sourceCode.trim().length >= 80 && hasReturn && hasFunctionLike) {
-    return "accepted";
-  }
-
-  if (language === "python" && normalized.includes("print") && sourceCode.trim().length >= 60) {
-    return "accepted";
-  }
-
-  return "wrong_answer";
-}
+import { executeSubmission } from "../utils/codeExecution.js";
 
 async function updateStudentProgress(client, { studentId, problemId, status, submittedAt }) {
   await client.query(
@@ -51,9 +25,9 @@ async function updateStudentProgress(client, { studentId, problemId, status, sub
         CASE WHEN $3 = 'wrong_answer' THEN 1 ELSE 0 END,
         CASE WHEN $3 = 'time_limit' THEN 1 ELSE 0 END,
         $3,
-        $4,
-        $4,
-        CASE WHEN $3 = 'accepted' THEN $4 ELSE NULL END,
+        $4::timestamptz,
+        $4::timestamptz,
+        CASE WHEN $3 = 'accepted' THEN $4::timestamptz ELSE NULL END,
         NOW()
       )
       ON CONFLICT (student_id, problem_id)
@@ -119,26 +93,44 @@ export async function createSubmission(req, res, next) {
       });
     }
 
-    const testCaseCountResult = await client.query(
+    const hiddenTestCaseResult = await client.query(
       `
-        SELECT COUNT(*)::int AS total_test_cases
+        SELECT id, input_data, expected_output, is_sample, sort_order
         FROM test_cases
         WHERE problem_id = $1
+          AND is_sample = FALSE
+        ORDER BY sort_order ASC, created_at ASC
       `,
       [problemId]
     );
 
+    const testCaseResult =
+      hiddenTestCaseResult.rows.length > 0
+        ? hiddenTestCaseResult
+        : await client.query(
+            `
+              SELECT id, input_data, expected_output, is_sample, sort_order
+              FROM test_cases
+              WHERE problem_id = $1
+              ORDER BY sort_order ASC, created_at ASC
+            `,
+            [problemId]
+          );
+
     const normalizedLanguage = language.trim().toLowerCase();
-    const status = evaluateSubmission({
-      sourceCode,
+    const executionResult = await executeSubmission({
       language: normalizedLanguage,
-      difficulty: problemResult.rows[0].difficulty
+      sourceCode,
+      testCases: testCaseResult.rows
     });
-    const totalTestCases = testCaseCountResult.rows[0].total_test_cases || 0;
-    const passedTestCases =
-      status === "accepted" ? totalTestCases : status === "wrong_answer" ? Math.max(0, totalTestCases - 1) : 0;
-    const executionTimeMs = Math.min(2000, sourceCode.trim().length * 3);
-    const memoryKb = 2048 + normalizedLanguage.length * 128;
+    const {
+      status,
+      passedTestCases,
+      totalTestCases,
+      executionTimeMs,
+      memoryKb,
+      compilerOutput
+    } = executionResult;
 
     await client.query("BEGIN");
 
@@ -153,9 +145,10 @@ export async function createSubmission(req, res, next) {
           passed_test_cases,
           total_test_cases,
           execution_time_ms,
-          memory_kb
+          memory_kb,
+          compiler_output
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING
           id,
           student_id,
@@ -167,6 +160,7 @@ export async function createSubmission(req, res, next) {
           total_test_cases,
           execution_time_ms,
           memory_kb,
+          compiler_output,
           submitted_at
       `,
       [
@@ -178,7 +172,8 @@ export async function createSubmission(req, res, next) {
         passedTestCases,
         totalTestCases,
         executionTimeMs,
-        memoryKb
+        memoryKb,
+        compilerOutput
       ]
     );
 
@@ -193,13 +188,89 @@ export async function createSubmission(req, res, next) {
 
     res.status(201).json({
       message: "Solution submitted successfully.",
-      submission: result.rows[0]
+      submission: result.rows[0],
+      testCaseResults: executionResult.testCaseResults ?? [],
+      execution: {
+        errorType: executionResult.errorType ?? null,
+        verdictLabel: executionResult.verdictLabel ?? result.rows[0].status,
+        stdout: executionResult.stdout ?? "",
+        stderr: executionResult.stderr ?? "",
+        executionTimeMs: executionResult.executionTimeMs ?? 0
+      }
     });
   } catch (error) {
     await client.query("ROLLBACK");
     next(error);
   } finally {
     client.release();
+  }
+}
+
+export async function runSubmission(req, res, next) {
+  const { problemId, language, sourceCode } = req.body;
+
+  if (!problemId || !language?.trim() || !sourceCode?.trim()) {
+    return res.status(400).json({
+      message: "Problem, language, and source code are required."
+    });
+  }
+
+  try {
+    const problemResult = await pool.query(
+      `
+        SELECT id
+        FROM problems
+        WHERE id = $1
+      `,
+      [problemId]
+    );
+
+    if (problemResult.rows.length === 0) {
+      return res.status(404).json({
+        message: "Coding question not found."
+      });
+    }
+
+    const sampleTestCaseResult = await pool.query(
+      `
+        SELECT id, input_data, expected_output, is_sample, sort_order
+        FROM test_cases
+        WHERE problem_id = $1
+          AND is_sample = TRUE
+        ORDER BY sort_order ASC, created_at ASC
+      `,
+      [problemId]
+    );
+
+    const testCasesToRun =
+      sampleTestCaseResult.rows.length > 0
+        ? sampleTestCaseResult.rows
+        : [
+            {
+              id: "no-sample-case",
+              input_data: "",
+              expected_output: "",
+              is_sample: true,
+              sort_order: 0
+            }
+          ];
+
+    const normalizedLanguage = language.trim().toLowerCase();
+    const executionResult = await executeSubmission({
+      language: normalizedLanguage,
+      sourceCode,
+      testCases: testCasesToRun
+    });
+
+    res.json({
+      message: "Sample test cases executed.",
+      result: {
+        ...executionResult,
+        language: normalizedLanguage
+      }
+    });
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -230,6 +301,7 @@ export async function getStudentSubmissions(req, res, next) {
           s.total_test_cases,
           s.execution_time_ms,
           s.memory_kb,
+          s.compiler_output,
           s.submitted_at
         FROM submissions s
         JOIN problems p ON p.id = s.problem_id
@@ -307,6 +379,7 @@ export async function getAdminSubmissions(req, res, next) {
           s.total_test_cases,
           s.execution_time_ms,
           s.memory_kb,
+          s.compiler_output,
           s.submitted_at
         FROM submissions s
         JOIN users u ON u.id = s.student_id

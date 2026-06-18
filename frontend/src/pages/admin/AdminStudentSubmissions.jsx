@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 import { getAdminSession, getAuthHeaders } from "../../utils/session";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -160,37 +161,33 @@ export default function AdminStudentSubmissions() {
   }, [filters.language, filters.problemId, filters.status, session?.token, studentId]);
 
   return (
-    <main className="detail-page admin-detail-page">
-      <section className="detail-card admin-detail-card">
-        <p className="auth-kicker">Student Submission Review</p>
-        {studentStatus.loading ? <h1>Loading student...</h1> : null}
-        {studentStatus.error ? <p className="form-status error">{studentStatus.error}</p> : null}
+    <PlatformLayout
+      role="admin"
+      eyebrow="Submission Review"
+      title={student ? `${student.full_name}'s attempts` : "Student submission review"}
+      subtitle="Filter by problem, status, and language to inspect the same kinds of attempt histories you would expect in a professional coding assessment tool."
+      meta={`${submissions.length} visible submissions`}
+      actions={
+        <Link className="auth-button ghost-button panel-action-button" to="/admin/students">
+          Back to students
+        </Link>
+      }
+      sidebarNote="Use this page as a submission audit console: filter the stream, inspect verdicts, and review source attempts with execution feedback."
+    >
+      {studentStatus.loading ? <p className="dashboard-copy">Loading student...</p> : null}
+      {studentStatus.error ? <p className="form-status error">{studentStatus.error}</p> : null}
 
-        {student ? (
-          <>
-            <h1>{student.full_name}</h1>
-            <p className="detail-copy">
-              Review this student's submission history, filter by problem, and inspect each code
-              attempt with its latest result.
-            </p>
+      {student ? (
+        <PlatformStats
+          items={[
+            { label: "Email", value: student.email, note: "Student account" },
+            { label: "Total submissions", value: student.submission_count, note: "All recorded attempts" },
+            { label: "Accepted", value: student.accepted_count, note: "Successful verdicts" }
+          ]}
+        />
+      ) : null}
 
-            <div className="dashboard-stats">
-              <article>
-                <span>Email</span>
-                <strong>{student.email}</strong>
-              </article>
-              <article>
-                <span>Total submissions</span>
-                <strong>{student.submission_count}</strong>
-              </article>
-              <article>
-                <span>Accepted</span>
-                <strong>{student.accepted_count}</strong>
-              </article>
-            </div>
-          </>
-        ) : null}
-
+      <PlatformSection label="Filters" title="Narrow the submission stream">
         <div className="filter-bar">
           <select
             aria-label="Filter submissions by problem"
@@ -247,7 +244,9 @@ export default function AdminStudentSubmissions() {
             <option value="javascript">JavaScript</option>
           </select>
         </div>
+      </PlatformSection>
 
+      <PlatformSection label="Attempt History" title="Inspect each submission">
         {submissionStatus.loading ? <p className="dashboard-copy">Loading submissions...</p> : null}
         {submissionStatus.error ? <p className="form-status error">{submissionStatus.error}</p> : null}
 
@@ -271,6 +270,9 @@ export default function AdminStudentSubmissions() {
                     <p className="question-meta">
                       {submission.language.toUpperCase()} - {submission.difficulty}
                     </p>
+                    {submission.compiler_output ? (
+                      <p className="question-meta">{submission.compiler_output.split("\n")[0]}</p>
+                    ) : null}
                     <p className="history-snippet">{submission.source_code}</p>
                   </article>
                 ))}
@@ -278,16 +280,7 @@ export default function AdminStudentSubmissions() {
             )}
           </>
         ) : null}
-
-        <div className="detail-actions">
-          <Link className="auth-button admin-button detail-link" to="/admin/students">
-            Back to students
-          </Link>
-          <Link className="auth-button ghost-button detail-link" to="/admin/dashboard">
-            Back to dashboard
-          </Link>
-        </div>
-      </section>
-    </main>
+      </PlatformSection>
+    </PlatformLayout>
   );
 }

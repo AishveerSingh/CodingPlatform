@@ -3,7 +3,8 @@ import {
   createSubmission,
   getAdminSubmissions,
   getStudentProgress,
-  getStudentSubmissions
+  getStudentSubmissions,
+  runSubmission
 } from "../controllers/submission.controller.js";
 import {
   requireAuth,
@@ -13,6 +14,7 @@ import {
 
 const submissionRouter = Router();
 
+submissionRouter.post("/run", requireAuth, runSubmission);
 submissionRouter.post("/", requireAuth, createSubmission);
 submissionRouter.get("/", requireAuth, requireRole("admin"), getAdminSubmissions);
 submissionRouter.get(

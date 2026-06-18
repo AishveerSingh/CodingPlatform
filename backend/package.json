@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "seed:problems": "node scripts/seedProblems.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

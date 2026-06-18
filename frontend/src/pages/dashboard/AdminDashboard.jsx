@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { getAdminSession, getAuthHeaders } from "../../utils/session";
+import AccountSection from "../../components/AccountSection";
+import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
+import { getAdminSession, getAuthHeaders, saveAdminSession } from "../../utils/session";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function AdminDashboard() {
   const location = useLocation();
-  const session = location.state?.session || getAdminSession();
+  const [session, setSession] = useState(location.state?.session || getAdminSession());
   const user = session?.user;
   const [problems, setProblems] = useState([]);
   const [students, setStudents] = useState([]);
@@ -123,116 +125,115 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="dashboard-page admin-dashboard-page">
-      <section className="dashboard-card admin-dashboard-card">
-        <p className="auth-kicker">Admin Dashboard</p>
-        <h1>{user ? `Welcome, ${user.full_name}.` : "Admin dashboard is ready."}</h1>
-        <p className="dashboard-copy">
-          {user ? `Authenticated as ${user.email}.` : "Open the admin login page to register or sign in."}
-        </p>
+    <PlatformLayout
+      role="admin"
+      eyebrow="Admin Dashboard"
+      title={user ? `Welcome back, ${user.full_name}.` : "Admin control room"}
+      subtitle={
+        user
+          ? `Monitor the problem bank, student activity, and administrative actions from one operations workspace. Signed in as ${user.email}.`
+          : "Open the admin login page to register or sign in."
+      }
+      meta="Oversight Mode"
+      actions={
+        <Link className="auth-button admin-button panel-action-button" to="/admin/problems/new">
+          Create problem
+        </Link>
+      }
+      sidebarNote="This admin area is designed like a coding-platform operations console: curate the bank, inspect participants, and track platform activity without leaving the workflow."
+    >
+      <PlatformStats
+        items={[
+          {
+            label: "Problem bank",
+            value: problems.length,
+            note: "Published and draft-ready prompts"
+          },
+          {
+            label: "Students",
+            value: students.length,
+            note: "Registered student accounts"
+          },
+          {
+            label: "Recent logs",
+            value: logs.length,
+            note: "Latest tracked admin events"
+          }
+        ]}
+      />
 
-        <div className="dashboard-stats">
-          <article>
-            <span>Role</span>
-            <strong>{user?.role || "admin"}</strong>
-          </article>
-          <article>
-            <span>Mode</span>
-            <strong>Oversight</strong>
-          </article>
-          <article>
-            <span>Students</span>
-            <strong>{students.length}</strong>
-          </article>
-        </div>
-
-        <section className="question-panel">
-          <div className="question-panel-header">
-            <div>
-              <p className="auth-kicker">Question Manager</p>
-              <h2>Manage the problem bank</h2>
-            </div>
-            <span className="question-count">{problems.length} total</span>
-          </div>
-          <p className="dashboard-copy">
-            Open the add-question page to create a new coding problem, or open the list page to
-            inspect existing questions one by one.
-          </p>
-
-          <div className="panel-action-row">
+      <PlatformSection
+        label="Question Manager"
+        title="Manage the problem bank"
+        actions={
+          <>
             <Link className="auth-button admin-button panel-action-button" to="/admin/problems/new">
               Add question
             </Link>
-            <Link className="auth-button admin-button panel-action-button" to="/admin/problems">
-              View question list
+            <Link className="auth-button ghost-button panel-action-button" to="/admin/problems">
+              View list
             </Link>
-          </div>
+          </>
+        }
+      >
+        <p className="dashboard-copy">
+          Open the creation flow to add fresh coding prompts, or review the existing bank before
+          publishing more practice content.
+        </p>
+        {problemStatus.error ? <p className="form-status error">{problemStatus.error}</p> : null}
+        {problemStatus.loading ? <p className="dashboard-copy">Loading coding questions...</p> : null}
+      </PlatformSection>
 
-          {problemStatus.error ? <p className="form-status error">{problemStatus.error}</p> : null}
-          {problemStatus.loading ? <p className="dashboard-copy">Loading coding questions...</p> : null}
-        </section>
-
-        <section className="question-panel">
-          <div className="question-panel-header">
-            <div>
-              <p className="auth-kicker">Student Directory</p>
-              <h2>Review students and their submissions</h2>
-            </div>
-            <span className="question-count">{students.length} students</span>
-          </div>
-          <p className="dashboard-copy">
-            Open the student list to view everyone on the platform, then drill into each student's
-            submission history.
-          </p>
-
-          <div className="panel-action-row">
-            <Link className="auth-button admin-button panel-action-button" to="/admin/students">
-              View all students
-            </Link>
-          </div>
-
-          {studentStatus.error ? <p className="form-status error">{studentStatus.error}</p> : null}
-          {studentStatus.loading ? <p className="dashboard-copy">Loading students...</p> : null}
-        </section>
-
-        <section className="question-panel">
-          <div className="question-panel-header">
-            <div>
-              <p className="auth-kicker">Admin Logs</p>
-              <h2>Recent activity</h2>
-            </div>
-            <span className="question-count">{logs.length} entries</span>
-          </div>
-          {logStatus.loading ? <p className="dashboard-copy">Loading admin activity...</p> : null}
-          {logStatus.error ? <p className="form-status error">{logStatus.error}</p> : null}
-          {!logStatus.loading && !logStatus.error ? (
-            logs.length ? (
-              <div className="history-list">
-                {logs.map((log) => (
-                  <article className="history-card" key={log.id}>
-                    <div className="question-card-top">
-                      <span className="difficulty-pill medium">{log.action_type.replaceAll("_", " ")}</span>
-                      <span className="question-meta">{new Date(log.created_at).toLocaleString()}</span>
-                    </div>
-                    <strong>{log.admin_name}</strong>
-                    <p>
-                      {log.target_type} {log.target_id ? `#${String(log.target_id).slice(0, 8)}` : ""}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p className="dashboard-copy">No admin activity has been recorded yet.</p>
-            )
-          ) : null}
-        </section>
-
-        <div className="dashboard-actions">
-          <Link className="auth-button admin-button dashboard-link" to="/admin/login">
-            Back to admin login
+      <PlatformSection
+        label="Student Directory"
+        title="Review students and submission health"
+        actions={
+          <Link className="auth-button admin-button panel-action-button" to="/admin/students">
+            View all students
           </Link>
-        </div>
-      </section>
-    </main>
+        }
+      >
+        <p className="dashboard-copy">
+          Drill into student activity the same way contest and interview platforms expose candidate
+          performance summaries.
+        </p>
+        {studentStatus.error ? <p className="form-status error">{studentStatus.error}</p> : null}
+        {studentStatus.loading ? <p className="dashboard-copy">Loading students...</p> : null}
+      </PlatformSection>
+
+      <PlatformSection label="Admin Logs" title="Recent activity">
+        {logStatus.loading ? <p className="dashboard-copy">Loading admin activity...</p> : null}
+        {logStatus.error ? <p className="form-status error">{logStatus.error}</p> : null}
+        {!logStatus.loading && !logStatus.error ? (
+          logs.length ? (
+            <div className="history-list">
+              {logs.map((log) => (
+                <article className="history-card" key={log.id}>
+                  <div className="question-card-top">
+                    <span className="difficulty-pill medium">{log.action_type.replaceAll("_", " ")}</span>
+                    <span className="question-meta">{new Date(log.created_at).toLocaleString()}</span>
+                  </div>
+                  <strong>{log.admin_name}</strong>
+                  <p>
+                    {log.target_type} {log.target_id ? `#${String(log.target_id).slice(0, 8)}` : ""}
+                  </p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="dashboard-copy">No admin activity has been recorded yet.</p>
+          )
+        ) : null}
+      </PlatformSection>
+
+      <AccountSection
+        role="admin"
+        session={session}
+        saveSession={(nextSession) => {
+          saveAdminSession(nextSession);
+          setSession(nextSession);
+        }}
+      />
+    </PlatformLayout>
   );
 }

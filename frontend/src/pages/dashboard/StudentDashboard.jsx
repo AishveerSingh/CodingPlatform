@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 import { getAuthHeaders, getStudentSession } from "../../utils/session";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -32,7 +33,7 @@ const defaultProgress = [
 
 export default function StudentDashboard() {
   const location = useLocation();
-  const session = location.state?.session || getStudentSession();
+  const [session] = useState(location.state?.session || getStudentSession());
   const user = session?.user;
   const [progress, setProgress] = useState(defaultProgress);
   const [progressStatus, setProgressStatus] = useState({
@@ -99,88 +100,89 @@ export default function StudentDashboard() {
   }, [session?.token, user?.id]);
 
   return (
-    <main className="dashboard-page student-dashboard-page">
-      <section className="dashboard-card student-dashboard-card">
-        <p className="auth-kicker">Student Dashboard</p>
-        <h1>{user ? `Welcome, ${user.full_name}.` : "Student dashboard is ready."}</h1>
-        <p className="dashboard-copy">
-          {user ? `Authenticated as ${user.email}.` : "Open the student login page to register or sign in."}
-        </p>
+    <PlatformLayout
+      role="student"
+      eyebrow="Student Dashboard"
+      title={user ? `Welcome back, ${user.full_name}.` : "Student workspace"}
+      subtitle={
+        user
+          ? `Track your practice, monitor acceptance rate, and jump into the next problem faster. Signed in as ${user.email}.`
+          : "Open the student login page to register or sign in."
+      }
+      meta="Practice Mode"
+      actions={
+        <Link className="auth-button student-button panel-action-button" to="/student/problems">
+          Solve problems
+        </Link>
+      }
+      sidebarNote="Use this area like a coding platform hub: open the problem set, keep an eye on your success rate, and return often to build momentum."
+    >
+      <PlatformStats
+        items={[
+          {
+            label: "Solved problems",
+            value: progress.reduce((sum, entry) => sum + (entry.solved_problems || 0), 0),
+            note: "Unique problems cleared"
+          },
+          {
+            label: "Accepted runs",
+            value: progress.reduce((sum, entry) => sum + (entry.accepted_submissions || 0), 0),
+            note: "Successful submissions"
+          },
+          {
+            label: "Total attempts",
+            value: progress.reduce((sum, entry) => sum + (entry.total_submissions || 0), 0),
+            note: "Across every difficulty"
+          }
+        ]}
+      />
 
-        <div className="dashboard-stats">
-          <article>
-            <span>Role</span>
-            <strong>{user?.role || "student"}</strong>
-          </article>
-          <article>
-            <span>Mode</span>
-            <strong>Practice</strong>
-          </article>
-          <article>
-            <span>Solved</span>
-            <strong>{progress.reduce((sum, entry) => sum + (entry.solved_problems || 0), 0)}</strong>
-          </article>
-        </div>
-
-        <section className="question-panel">
-          <div className="question-panel-header question-panel-header-compact">
-            <div>
-              <p className="auth-kicker">Coding Questions</p>
-              <h2>Open the practice list.</h2>
-            </div>
-            <Link className="auth-button student-button panel-action-button" to="/student/problems">
-              View questions
-            </Link>
-          </div>
-          <p className="dashboard-copy">
-            Use the questions button to open the full list of coding problems, then click any one
-            to see its student detail page.
-          </p>
-        </section>
-
-        <section className="question-panel">
-          <div className="question-panel-header">
-            <div>
-              <p className="auth-kicker">Progress</p>
-              <h2>Submission status by difficulty</h2>
-            </div>
-          </div>
-          {!user?.id ? (
-            <p className="dashboard-copy">
-              Log in as a student and submit solutions to fill these progress meters.
-            </p>
-          ) : null}
-          {progressStatus.loading ? <p className="dashboard-copy">Loading progress...</p> : null}
-          {progressStatus.error ? <p className="form-status error">{progressStatus.error}</p> : null}
-          {!progressStatus.loading && !progressStatus.error ? (
-            <div className="progress-grid">
-              {progress.map((entry) => (
-                <article className="progress-card" key={entry.difficulty}>
-                  <span className={`difficulty-pill ${entry.difficulty}`}>{entry.difficulty}</span>
-                  <div className="progress-meter">
-                    <div
-                      className={`progress-meter-fill ${entry.difficulty}`}
-                      style={{ width: `${getProgressPercent(entry)}%` }}
-                    />
-                  </div>
-                  <span className="progress-percent">{getProgressPercent(entry)}% success</span>
-                  <strong>{entry.accepted_submissions} accepted</strong>
-                  <p>{entry.total_submissions} submissions total</p>
-                  <p>{entry.solved_problems} solved problems</p>
-                  <p>{entry.wrong_answer_submissions} wrong answer</p>
-                  <p>{entry.time_limit_submissions} time limit</p>
-                </article>
-              ))}
-            </div>
-          ) : null}
-        </section>
-
-        <div className="dashboard-actions">
-          <Link className="auth-button student-button dashboard-link" to="/student/login">
-            Back to student login
+      <PlatformSection
+        label="Problem Set"
+        title="Start a focused practice session"
+        actions={
+          <Link className="auth-button student-button panel-action-button" to="/student/problems">
+            Open problem list
           </Link>
-        </div>
-      </section>
-    </main>
+        }
+      >
+        <p className="dashboard-copy">
+          Move through the questions like a standard coding platform flow: pick a problem, read
+          the statement, code in the workspace, and submit to see your verdict immediately.
+        </p>
+      </PlatformSection>
+
+      <PlatformSection label="Performance" title="Submission status by difficulty">
+        {!user?.id ? (
+          <p className="dashboard-copy">
+            Log in as a student and submit solutions to fill these progress meters.
+          </p>
+        ) : null}
+        {progressStatus.loading ? <p className="dashboard-copy">Loading progress...</p> : null}
+        {progressStatus.error ? <p className="form-status error">{progressStatus.error}</p> : null}
+        {!progressStatus.loading && !progressStatus.error ? (
+          <div className="progress-grid">
+            {progress.map((entry) => (
+              <article className="progress-card" key={entry.difficulty}>
+                <span className={`difficulty-pill ${entry.difficulty}`}>{entry.difficulty}</span>
+                <div className="progress-meter">
+                  <div
+                    className={`progress-meter-fill ${entry.difficulty}`}
+                    style={{ width: `${getProgressPercent(entry)}%` }}
+                  />
+                </div>
+                <span className="progress-percent">{getProgressPercent(entry)}% success</span>
+                <strong>{entry.accepted_submissions} accepted</strong>
+                <p>{entry.total_submissions} submissions total</p>
+                <p>{entry.solved_problems} solved problems</p>
+                <p>{entry.wrong_answer_submissions} wrong answer</p>
+                <p>{entry.time_limit_submissions} time limit</p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </PlatformSection>
+
+    </PlatformLayout>
   );
 }

@@ -13,6 +13,28 @@ function sanitizeUser(row) {
   };
 }
 
+async function fetchUserSummary(userId) {
+  const result = await pool.query(
+    `
+      SELECT
+        u.id,
+        u.full_name,
+        u.email,
+        u.role,
+        u.created_at,
+        COUNT(s.id)::int AS submission_count,
+        COUNT(*) FILTER (WHERE s.status = 'accepted')::int AS accepted_count
+      FROM users u
+      LEFT JOIN submissions s ON s.student_id = u.id
+      WHERE u.id = $1
+      GROUP BY u.id
+    `,
+    [userId]
+  );
+
+  return result.rows[0] ? sanitizeUser(result.rows[0]) : null;
+}
+
 async function registerUser(req, res, next, role) {
   const { fullName, email, password } = req.body;
 
@@ -209,22 +231,73 @@ export async function getUserById(req, res, next) {
   const { userId } = req.params;
 
   try {
+    const user = await fetchUserSummary(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found."
+      });
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getCurrentUser(req, res, next) {
+  try {
+    const user = await fetchUserSummary(req.auth.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found."
+      });
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateCurrentUser(req, res, next) {
+  const { fullName, email } = req.body;
+
+  if (!fullName?.trim() || !email?.trim()) {
+    return res.status(400).json({
+      message: "Full name and email are required."
+    });
+  }
+
+  try {
+    const normalizedName = fullName.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const duplicateResult = await pool.query(
+      `
+        SELECT id
+        FROM users
+        WHERE email = $1 AND id <> $2
+      `,
+      [normalizedEmail, req.auth.userId]
+    );
+
+    if (duplicateResult.rows.length > 0) {
+      return res.status(409).json({
+        message: "This email is already in use by another account."
+      });
+    }
+
     const result = await pool.query(
       `
-        SELECT
-          u.id,
-          u.full_name,
-          u.email,
-          u.role,
-          u.created_at,
-          COUNT(s.id)::int AS submission_count,
-          COUNT(*) FILTER (WHERE s.status = 'accepted')::int AS accepted_count
-        FROM users u
-        LEFT JOIN submissions s ON s.student_id = u.id
-        WHERE u.id = $1
-        GROUP BY u.id
+        UPDATE users
+        SET full_name = $1,
+            email = $2
+        WHERE id = $3
+        RETURNING id, full_name, email, role, created_at
       `,
-      [userId]
+      [normalizedName, normalizedEmail, req.auth.userId]
     );
 
     if (result.rows.length === 0) {
@@ -233,7 +306,73 @@ export async function getUserById(req, res, next) {
       });
     }
 
-    res.json(sanitizeUser(result.rows[0]));
+    const updatedUser = await fetchUserSummary(req.auth.userId);
+    const token = signAuthToken(result.rows[0]);
+
+    res.json({
+      message: "Account details updated successfully.",
+      token,
+      user: updatedUser
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function changeCurrentUserPassword(req, res, next) {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword?.trim() || !newPassword?.trim()) {
+    return res.status(400).json({
+      message: "Current password and new password are required."
+    });
+  }
+
+  if (newPassword.trim().length < 8) {
+    return res.status(400).json({
+      message: "New password must be at least 8 characters long."
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+        SELECT id, full_name, email, role, created_at, password_hash
+        FROM users
+        WHERE id = $1
+      `,
+      [req.auth.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "User not found."
+      });
+    }
+
+    const userRecord = result.rows[0];
+    const isValidPassword = await verifyPassword(currentPassword.trim(), userRecord.password_hash);
+
+    if (!isValidPassword) {
+      return res.status(401).json({
+        message: "Current password is incorrect."
+      });
+    }
+
+    const passwordHash = await hashPassword(newPassword.trim());
+
+    await pool.query(
+      `
+        UPDATE users
+        SET password_hash = $1
+        WHERE id = $2
+      `,
+      [passwordHash, req.auth.userId]
+    );
+
+    res.json({
+      message: "Password changed successfully."
+    });
   } catch (error) {
     next(error);
   }

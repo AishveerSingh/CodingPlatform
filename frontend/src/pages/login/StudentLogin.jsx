@@ -8,6 +8,11 @@ const initialForm = {
   email: "",
   password: ""
 };
+const studentHighlights = [
+  "Structured problem statements",
+  "Language-based coding workspace",
+  "Instant submission verdicts"
+];
 
 export default function StudentLogin() {
   const navigate = useNavigate();
@@ -89,31 +94,59 @@ export default function StudentLogin() {
 
   return (
     <main className="auth-page student-auth-page">
-      <section className="auth-panel student-panel">
-        <div className="auth-intro">
+      <aside className="auth-side student-side">
+        <p className="auth-side-label">Student space</p>
+        <h2>Train in a workspace that feels closer to real coding platforms.</h2>
+        <p className="login-copy">
+          Move from sign-in to a structured problem bank, editor-first solving flow, and a clean
+          verdict history built for regular practice.
+        </p>
+        <div className="auth-badge-row auth-badge-row-side">
+          <span className="auth-badge">Problem workspace</span>
+          <span className="auth-badge">Submission verdicts</span>
+          <span className="auth-badge">Progress dashboard</span>
+        </div>
+        <div className="auth-feature-list">
+          {studentHighlights.map((highlight) => (
+            <article className="auth-feature-item" key={highlight}>
+              <span className="auth-feature-dot" />
+              <p>{highlight}</p>
+            </article>
+          ))}
+        </div>
+        <div className="auth-side-metrics">
+          <article>
+            <span>Experience</span>
+            <strong>Problem bank</strong>
+          </article>
+          <article>
+            <span>Feedback</span>
+            <strong>Runtime verdicts</strong>
+          </article>
+        </div>
+      </aside>
+
+      <section className="auth-panel student-panel auth-entry-panel">
+        <div className="auth-form-panel-header">
           <p className="auth-kicker">Student Access</p>
-          <h1>Start solving, shipping, and learning.</h1>
-          <p className="auth-copy">
-            Register a student account with a password or log in with your existing credentials.
+          <h1>{mode === "register" ? "Register" : "Log in"}</h1>
+          <p className="auth-form-panel-copy">
+            {mode === "register"
+              ? "Create your student account to start solving problems."
+              : "Continue to your practice dashboard and coding workspace."}
           </p>
         </div>
 
-        <div className="auth-badge-row">
-          <span className="auth-badge">Practice tracks</span>
-          <span className="auth-badge">Password auth</span>
-          <span className="auth-badge">JWT session</span>
-        </div>
-
-        <div className="panel-action-row">
+        <div className="auth-switcher" role="tablist" aria-label="Student auth mode">
           <button
-            className={`auth-button ${mode === "login" ? "student-button" : "ghost-button"} panel-action-button`}
+            className={`auth-switcher-button ${mode === "login" ? "active student-accent" : ""}`}
             type="button"
             onClick={() => setMode("login")}
           >
             Log in
           </button>
           <button
-            className={`auth-button ${mode === "register" ? "student-button" : "ghost-button"} panel-action-button`}
+            className={`auth-switcher-button ${mode === "register" ? "active student-accent" : ""}`}
             type="button"
             onClick={() => setMode("register")}
           >
@@ -121,71 +154,74 @@ export default function StudentLogin() {
           </button>
         </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
-          {mode === "register" ? (
-            <>
-              <label className="form-field" htmlFor="fullName">
-                Full name
-              </label>
-              <input
-                id="fullName"
-                name="fullName"
-                type="text"
-                placeholder="Enter your full name"
-                value={form.fullName}
-                onChange={handleChange}
-                required
-              />
-            </>
-          ) : null}
+        <div className="auth-form-card">
+          <div className="auth-form-card-topline">
+            <span>{mode === "register" ? "New student profile" : "Secure student sign in"}</span>
+            <strong>{mode === "register" ? "Account setup" : "Welcome back"}</strong>
+          </div>
 
-          <label className="form-field" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="Enter your email"
-            value={form.email}
-            onChange={handleChange}
-            required
-          />
+          <form className="auth-form auth-form-portal" onSubmit={handleSubmit}>
+            {mode === "register" ? (
+              <>
+                <label className="form-field" htmlFor="fullName">
+                  Full name
+                </label>
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  placeholder="Enter your full name"
+                  value={form.fullName}
+                  onChange={handleChange}
+                  required
+                />
+              </>
+            ) : null}
 
-          <label className="form-field" htmlFor="password">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="Enter your password"
-            value={form.password}
-            onChange={handleChange}
-            minLength={8}
-            required
-          />
+            <label className="form-field" htmlFor="email">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="Enter your email"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
 
-          <button className="auth-button student-button" type="submit" disabled={isSubmitting}>
-            {isSubmitting
-              ? "Saving..."
-              : mode === "register"
-                ? "Create student account"
-                : "Enter student dashboard"}
-          </button>
-        </form>
+            <label className="form-field" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="Enter your password"
+              value={form.password}
+              onChange={handleChange}
+              minLength={8}
+              required
+            />
 
-        {status.message ? <p className={`form-status ${status.type}`}>{status.message}</p> : null}
+            <button className="auth-button student-button auth-submit-wide" type="submit" disabled={isSubmitting}>
+              {isSubmitting
+                ? "Saving..."
+                : mode === "register"
+                  ? "Create student account"
+                  : "Enter student dashboard"}
+            </button>
+          </form>
+
+          {status.message ? <p className={`form-status ${status.type}`}>{status.message}</p> : null}
+
+          <div className="auth-form-footer-note">
+            <span className="auth-form-footer-dot" />
+            <p>Protected session access for the student workspace</p>
+          </div>
+        </div>
       </section>
-
-      <aside className="auth-side student-side">
-        <p className="auth-side-label">Student space</p>
-        <h2>Build consistency before complexity.</h2>
-        <p className="login-copy">
-          Sign in securely, keep your student identity in the database, and move into the
-          dashboard with a JWT-backed session.
-        </p>
-      </aside>
     </main>
   );
 }

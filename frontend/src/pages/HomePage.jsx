@@ -25,12 +25,27 @@ export default function HomePage() {
       <section className="landing-shell">
         <div className="landing-hero">
           <p className="landing-kicker">Coding Platform</p>
-          <h1>Practice coding, manage problems, and move faster from one clean home page.</h1>
+          <h1>Train, review, and manage coding workflows in a workspace inspired by modern challenge platforms.</h1>
           <p className="landing-copy">
-            Choose whether you are a student or admin, then jump directly into the right workflow.
-            Students can explore problems and practice consistently, while admins can curate the
-            problem bank and guide the platform.
+            Choose whether you are a student or admin, then move into a professional practice
+            environment with structured problem statements, submission verdicts, dashboards, and
+            admin review tools.
           </p>
+
+          <div className="landing-stat-strip">
+            <article>
+              <span>Workspace</span>
+              <strong>Problem + editor + verdict flow</strong>
+            </article>
+            <article>
+              <span>Roles</span>
+              <strong>Student and admin paths</strong>
+            </article>
+            <article>
+              <span>Supported</span>
+              <strong>C++, Java, Python, JavaScript</strong>
+            </article>
+          </div>
 
           <div className="landing-actions">
             <Link className="landing-role-card student-role-card" to="/student/login">
@@ -60,6 +75,28 @@ export default function HomePage() {
                 <p>{language.summary}</p>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section className="language-panel landing-feature-panel">
+          <div className="language-panel-header">
+            <p className="landing-kicker">Platform Flow</p>
+            <h2>What the product now feels like</h2>
+          </div>
+
+          <div className="card-grid">
+            <article className="feature-card">
+              <h2>Problem-first workspace</h2>
+              <p>Students open a structured prompt with examples, requirements, editor, and live verdicts in one view.</p>
+            </article>
+            <article className="feature-card">
+              <h2>Dashboard-driven practice</h2>
+              <p>Students and admins both get role-specific overview screens with stats, actions, and quick navigation.</p>
+            </article>
+            <article className="feature-card">
+              <h2>Professional review tools</h2>
+              <p>Admins can search problems, review students, and inspect attempt history more like a real assessment platform.</p>
+            </article>
           </div>
         </section>
       </section>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 import { getAdminSession, getAuthHeaders } from "../../utils/session";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -189,15 +190,54 @@ export default function AdminProblemDetails() {
   }
 
   return (
-    <main className="detail-page admin-detail-page">
-      <section className="detail-card admin-detail-card">
-        <p className="auth-kicker">Admin Question View</p>
-        {status.loading ? <h1>Loading question...</h1> : null}
-        {status.error ? <p className="form-status error">{status.error}</p> : null}
-        {!session?.token ? <p className="form-status error">Log in as an admin to edit questions.</p> : null}
+    <PlatformLayout
+      role="admin"
+      eyebrow="Problem Review"
+      title={problem ? problem.title : "Admin question view"}
+      subtitle="Inspect the prompt like a content QA pass, then edit metadata, examples, and requirements when the problem needs improvement."
+      meta={problem ? problem.difficulty : "Problem"}
+      sidebarNote="Use this screen as a quality-review surface for the problem bank. Validate the student-facing experience before editing or deleting the prompt."
+    >
+      {status.loading ? <h1>Loading question...</h1> : null}
+      {status.error ? <p className="form-status error">{status.error}</p> : null}
+      {!session?.token ? <p className="form-status error">Log in as an admin to edit questions.</p> : null}
 
-        {problem ? (
-          <>
+      {problem ? (
+        <>
+          <PlatformStats
+            items={[
+              { label: "Difficulty", value: problem.difficulty, note: "Current assigned level" },
+              { label: "Tags", value: (problem.tags || []).length, note: "Topics on the prompt" },
+              { label: "Sample cases", value: problem.sample_test_cases?.length || 0, note: "Public examples" }
+            ]}
+          />
+
+          <PlatformSection
+            label="Question View"
+            title={isEditing ? "Edit the problem" : "Problem details"}
+            actions={
+              problem && !isEditing ? (
+                <>
+                  <button
+                    className="auth-button admin-button detail-link"
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    disabled={!session?.token}
+                  >
+                    Edit question
+                  </button>
+                  <button
+                    className="auth-button danger-button detail-link"
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isDeleting || !session?.token}
+                  >
+                    {isDeleting ? "Deleting..." : "Delete question"}
+                  </button>
+                </>
+              ) : null
+            }
+          >
             {!isEditing ? (
               <>
                 <div className="detail-hero">
@@ -207,7 +247,6 @@ export default function AdminProblemDetails() {
                   </span>
                 </div>
 
-                <h1>{problem.title}</h1>
                 <p className="detail-copy">
                   Review how students will see this prompt and confirm the question quality before
                   sharing more tasks.
@@ -378,40 +417,20 @@ export default function AdminProblemDetails() {
                 </div>
               </form>
             )}
-          </>
-        ) : null}
 
-        {actionMessage ? <p className="form-status success">{actionMessage}</p> : null}
+            {actionMessage ? <p className="form-status success">{actionMessage}</p> : null}
 
-        <div className="detail-actions">
-          {problem && !isEditing ? (
-            <>
-              <button
-                className="auth-button admin-button detail-link"
-                type="button"
-                onClick={() => setIsEditing(true)}
-                disabled={!session?.token}
-              >
-                Edit question
-              </button>
-              <button
-                className="auth-button danger-button detail-link"
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting || !session?.token}
-              >
-                {isDeleting ? "Deleting..." : "Delete question"}
-              </button>
-            </>
-          ) : null}
-          <Link className="auth-button admin-button detail-link" to="/admin/problems">
-            Back to question list
-          </Link>
-          <Link className="auth-button ghost-button detail-link" to="/admin/dashboard">
-            Back to dashboard
-          </Link>
-        </div>
-      </section>
-    </main>
+            <div className="detail-actions">
+              <Link className="auth-button admin-button detail-link" to="/admin/problems">
+                Back to question list
+              </Link>
+              <Link className="auth-button ghost-button detail-link" to="/admin/dashboard">
+                Back to dashboard
+              </Link>
+            </div>
+          </PlatformSection>
+        </>
+      ) : null}
+    </PlatformLayout>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 import { getAdminSession, getAuthHeaders } from "../../utils/session";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -80,19 +81,35 @@ export default function AdminStudentList() {
   }, [filters.search, session?.token]);
 
   return (
-    <main className="detail-page admin-detail-page">
-      <section className="detail-card admin-detail-card">
-        <div className="list-header">
-          <div>
-            <p className="auth-kicker">Student Directory</p>
-            <h1>View all students on the platform.</h1>
-            <p className="detail-copy">
-              Search the student roster, check activity totals, and open each submission history.
-            </p>
-          </div>
-          <span className="question-count">{students.length} students</span>
-        </div>
+    <PlatformLayout
+      role="admin"
+      eyebrow="Student Directory"
+      title="View all students on the platform"
+      subtitle="Search the roster, compare submission activity, and open any learner's submission history from one review screen."
+      meta={`${students.length} students`}
+      sidebarNote="This directory should feel like an assessment platform roster: quick search, visible activity metrics, and one-click drill-down into attempts."
+    >
+      <PlatformStats
+        items={[
+          {
+            label: "Students",
+            value: students.length,
+            note: "Visible under current filters"
+          },
+          {
+            label: "Total submissions",
+            value: students.reduce((sum, student) => sum + (student.submission_count || 0), 0),
+            note: "Combined student activity"
+          },
+          {
+            label: "Accepted",
+            value: students.reduce((sum, student) => sum + (student.accepted_count || 0), 0),
+            note: "Successful runs across students"
+          }
+        ]}
+      />
 
+      <PlatformSection label="Search" title="Find a student quickly">
         <div className="filter-bar">
           <input
             aria-label="Search students"
@@ -108,7 +125,9 @@ export default function AdminStudentList() {
             }}
           />
         </div>
+      </PlatformSection>
 
+      <PlatformSection label="Roster" title="Open a student submission history">
         {status.loading ? <p className="dashboard-copy">Loading students...</p> : null}
         {status.error ? <p className="form-status error">{status.error}</p> : null}
 
@@ -144,13 +163,7 @@ export default function AdminStudentList() {
             )}
           </>
         ) : null}
-
-        <div className="detail-actions">
-          <Link className="auth-button admin-button detail-link" to="/admin/dashboard">
-            Back to admin dashboard
-          </Link>
-        </div>
-      </section>
-    </main>
+      </PlatformSection>
+    </PlatformLayout>
   );
 }

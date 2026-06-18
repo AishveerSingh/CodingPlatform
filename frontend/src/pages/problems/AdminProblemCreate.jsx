@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { PlatformLayout, PlatformSection } from "../../components/PlatformLayout";
 import { getAdminSession, getAuthHeaders } from "../../utils/session";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -106,21 +107,18 @@ export default function AdminProblemCreate() {
   }
 
   return (
-    <main className="detail-page admin-detail-page">
-      <section className="detail-card admin-detail-card">
-        <div className="list-header">
-          <div>
-            <p className="auth-kicker">Admin Question Creator</p>
-            <h1>Add a new coding question.</h1>
-            <p className="detail-copy">
-              Fill in the title, difficulty, statement, tags, and a sample test case. After
-              saving, the question list will open automatically.
-            </p>
-            {!session?.token ? (
-              <p className="form-status error">Log in as an admin to create questions.</p>
-            ) : null}
-          </div>
-        </div>
+    <PlatformLayout
+      role="admin"
+      eyebrow="Problem Creation"
+      title="Add a new coding question"
+      subtitle="Write the prompt the way you would for a real practice or assessment platform: statement, requirements, tags, and sample cases."
+      meta="Authoring Mode"
+      sidebarNote="This screen is your authoring studio for the problem bank. Capture the prompt clearly so students can solve it with minimal ambiguity."
+    >
+      <PlatformSection label="Authoring Form" title="Create a polished problem statement">
+        {!session?.token ? (
+          <p className="form-status error">Log in as an admin to create questions.</p>
+        ) : null}
 
         <form className="auth-form admin-problem-form" onSubmit={handleSubmit}>
           <label className="form-field" htmlFor="title">
@@ -272,7 +270,7 @@ export default function AdminProblemCreate() {
             Back to dashboard
           </Link>
         </div>
-      </section>
-    </main>
+      </PlatformSection>
+    </PlatformLayout>
   );
 }

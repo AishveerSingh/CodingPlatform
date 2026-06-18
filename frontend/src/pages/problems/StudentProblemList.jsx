@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -47,19 +48,40 @@ export default function StudentProblemList() {
   }, []);
 
   return (
-    <main className="detail-page student-detail-page">
-      <section className="detail-card student-detail-card">
-        <div className="list-header">
-          <div>
-            <p className="auth-kicker">Student Problem List</p>
-            <h1>Choose a question to practice.</h1>
-            <p className="detail-copy">
-              Open any problem below to view the full statement in the student layout.
-            </p>
-          </div>
-          <span className="question-count">{problems.length} questions</span>
-        </div>
+    <PlatformLayout
+      role="student"
+      eyebrow="Problem Set"
+      title="Choose your next coding challenge"
+      subtitle="Browse the practice bank the way you would on a modern coding platform, then open a prompt to solve it in the full workspace."
+      meta={`${problems.length} problems`}
+      actions={
+        <Link className="auth-button student-button panel-action-button" to="/student/dashboard">
+          Dashboard
+        </Link>
+      }
+      sidebarNote="Use the problem set like a clean challenge catalog: scan difficulty, open statements quickly, and keep your practice loop tight."
+    >
+      <PlatformStats
+        items={[
+          {
+            label: "Easy",
+            value: problems.filter((problem) => problem.difficulty === "easy").length,
+            note: "Warm-up prompts"
+          },
+          {
+            label: "Medium",
+            value: problems.filter((problem) => problem.difficulty === "medium").length,
+            note: "Interview-style rounds"
+          },
+          {
+            label: "Hard",
+            value: problems.filter((problem) => problem.difficulty === "hard").length,
+            note: "Stretch problems"
+          }
+        ]}
+      />
 
+      <PlatformSection label="Problem Bank" title="Available practice questions">
         {status.loading ? <p className="dashboard-copy">Loading coding questions...</p> : null}
         {status.error ? <p className="form-status error">{status.error}</p> : null}
 
@@ -79,18 +101,12 @@ export default function StudentProblemList() {
                 </div>
                 <h3>{problem.title}</h3>
                 <p>{problem.statement}</p>
-                <span className="question-cta">Open student view</span>
+                <span className="question-cta">Open workspace</span>
               </Link>
             ))}
           </div>
         ) : null}
-
-        <div className="detail-actions">
-          <Link className="auth-button student-button detail-link" to="/student/dashboard">
-            Back to student dashboard
-          </Link>
-        </div>
-      </section>
-    </main>
+      </PlatformSection>
+    </PlatformLayout>
   );
 }

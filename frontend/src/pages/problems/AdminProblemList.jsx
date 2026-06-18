@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -77,20 +78,28 @@ export default function AdminProblemList() {
   }
 
   return (
-    <main className="detail-page admin-detail-page">
-      <section className="detail-card admin-detail-card">
-        <div className="list-header">
-          <div>
-            <p className="auth-kicker">Admin Problem List</p>
-            <h1>Review and open any coding question.</h1>
-            <p className="detail-copy">
-              Use this list to inspect the questions admins have added before opening the admin
-              detail view.
-            </p>
-          </div>
-          <span className="question-count">{problems.length} questions</span>
-        </div>
+    <PlatformLayout
+      role="admin"
+      eyebrow="Problem Bank"
+      title="Review and curate coding questions"
+      subtitle="Search, filter, and inspect every prompt in the bank before editing or shipping it to students."
+      meta={`${problems.length} questions`}
+      actions={
+        <Link className="auth-button admin-button panel-action-button" to="/admin/problems/new">
+          Add problem
+        </Link>
+      }
+      sidebarNote="Treat this like a professional problem library: search quickly, filter by challenge level, and open any prompt to review its quality."
+    >
+      <PlatformStats
+        items={[
+          { label: "Easy", value: problems.filter((problem) => problem.difficulty === "easy").length, note: "Entry-level prompts" },
+          { label: "Medium", value: problems.filter((problem) => problem.difficulty === "medium").length, note: "Core interview problems" },
+          { label: "Hard", value: problems.filter((problem) => problem.difficulty === "hard").length, note: "Advanced challenges" }
+        ]}
+      />
 
+      <PlatformSection label="Filters" title="Search the problem bank">
         <div className="filter-bar">
           <input
             aria-label="Search questions"
@@ -114,7 +123,9 @@ export default function AdminProblemList() {
             <option value="hard">Hard</option>
           </select>
         </div>
+      </PlatformSection>
 
+      <PlatformSection label="Question List" title="Open any problem for admin review">
         {status.loading ? <p className="dashboard-copy">Loading coding questions...</p> : null}
         {status.error ? <p className="form-status error">{status.error}</p> : null}
 
@@ -147,13 +158,7 @@ export default function AdminProblemList() {
             )}
           </>
         ) : null}
-
-        <div className="detail-actions">
-          <Link className="auth-button admin-button detail-link" to="/admin/dashboard">
-            Back to admin dashboard
-          </Link>
-        </div>
-      </section>
-    </main>
+      </PlatformSection>
+    </PlatformLayout>
   );
 }
