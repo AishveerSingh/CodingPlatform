@@ -26,10 +26,10 @@ const problems = [
       "If the input is 7 8, then the output should be 15 because 7 + 8 = 15.",
     tags: ["math", "implementation"],
     testCases: [
+      { input: "4 5", output: "9", isSample: true },
       { input: "7 8", output: "15", isSample: true },
-      { input: "-5 9", output: "4", isSample: true },
       { input: "100 200", output: "300", isSample: false },
-      { input: "0 0", output: "0", isSample: false }
+      { input: "50 -30", output: "20", isSample: false }
     ]
   },
   {
@@ -93,6 +93,90 @@ const problems = [
       { input: "coding", output: "NO", isSample: true },
       { input: "madam", output: "YES", isSample: false },
       { input: "abca", output: "NO", isSample: false }
+    ]
+  },
+  {
+    title: "Find the Missing Number",
+    difficulty: "easy",
+    statement:
+      "You are given an array of size n - 1 containing distinct integers in the range 1 to n. Find the missing number.",
+    inputFormat:
+      "The first line contains an integer n. The second line contains n - 1 space-separated integers.",
+    outputFormat:
+      "Print a single integer representing the missing number.",
+    constraintsText:
+      "2 <= n <= 10^5",
+    examplesText:
+      "If n = 5 and the array is 1 2 4 5, the missing number is 3.",
+    tags: ["arrays", "math"],
+    testCases: [
+      { input: "5\n1 2 4 5", output: "3", isSample: true },
+      { input: "3\n3 2", output: "1", isSample: true },
+      { input: "4\n1 3 4", output: "2", isSample: false },
+      { input: "2\n1", output: "2", isSample: false }
+    ]
+  },
+  {
+    title: "Valid Parentheses",
+    difficulty: "easy",
+    statement:
+      "Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. An input string is valid if open brackets are closed by the same type of brackets, and open brackets are closed in the correct order. Print YES if it is valid, otherwise print NO.",
+    inputFormat:
+      "A single line containing the string s.",
+    outputFormat:
+      "Print YES if the string is valid, otherwise print NO.",
+    constraintsText:
+      "1 <= length of s <= 10^4",
+    examplesText:
+      "If the input is ()[]{}, the output should be YES.\nIf the input is ([)], the output should be NO.",
+    tags: ["stack", "strings"],
+    testCases: [
+      { input: "()[]{}", output: "YES", isSample: true },
+      { input: "([)]", output: "NO", isSample: true },
+      { input: "{[]}", output: "YES", isSample: false },
+      { input: "(", output: "NO", isSample: false }
+    ]
+  },
+  {
+    title: "Two Sum",
+    difficulty: "medium",
+    statement:
+      "Given an array of integers nums and an integer target, find indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice. Print the two indices in ascending order, separated by a space.",
+    inputFormat:
+      "The first line contains two integers: n (the size of the array) and target. The second line contains n space-separated integers.",
+    outputFormat:
+      "Print the two indices separated by a space.",
+    constraintsText:
+      "2 <= n <= 10^4\n-10^9 <= nums[i] <= 10^9\n-10^9 <= target <= 10^9",
+    examplesText:
+      "For nums = 2 7 11 15 and target = 9, the answer is 0 1 because nums[0] + nums[1] = 9.",
+    tags: ["arrays", "hash-map", "two-pointers"],
+    testCases: [
+      { input: "4 9\n2 7 11 15", output: "0 1", isSample: true },
+      { input: "3 6\n3 2 4", output: "1 2", isSample: true },
+      { input: "3 6\n3 3", output: "0 1", isSample: false },
+      { input: "4 10\n1 5 5 8", output: "1 2", isSample: false }
+    ]
+  },
+  {
+    title: "Longest Substring Without Repeating Characters",
+    difficulty: "medium",
+    statement:
+      "Given a string s, find the length of the longest substring without repeating characters.",
+    inputFormat:
+      "A single line containing the string s.",
+    outputFormat:
+      "Print a single integer representing the length of the longest substring.",
+    constraintsText:
+      "0 <= length of s <= 10^5",
+    examplesText:
+      "For s = abcabcbb, the longest substring is abc, so the answer is 3.",
+    tags: ["strings", "sliding-window"],
+    testCases: [
+      { input: "abcabcbb", output: "3", isSample: true },
+      { input: "bbbbb", output: "1", isSample: true },
+      { input: "pwwkew", output: "3", isSample: false },
+      { input: "abcdef", output: "6", isSample: false }
     ]
   }
 ];

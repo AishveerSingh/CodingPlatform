@@ -10,6 +10,7 @@ import {
   registerAdmin,
   registerFaculty,
   registerStudent,
+  resetStudentPassword,
   updateCurrentUser
 } from "../controllers/user.controller.js";
 import { requireAuth, requireRole } from "../middleware/auth.middleware.js";
@@ -29,5 +30,6 @@ userRouter.put("/me/password", requireAuth, changeCurrentUserPassword);
 
 userRouter.get("/", requireAuth, requireRole("admin"), getUsers);
 userRouter.get("/:userId", requireAuth, requireRole("admin"), getUserById);
+userRouter.put("/:userId/reset-password", requireAuth, requireRole("admin"), resetStudentPassword);
 
 export default userRouter;
