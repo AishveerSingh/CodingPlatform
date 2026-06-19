@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
   changeCurrentUserPassword,
+  getAccessibleStudentById,
+  getAccessibleStudents,
   getCurrentUser,
   getUserById,
   getUsers,
@@ -13,7 +15,7 @@ import {
   resetStudentPassword,
   updateCurrentUser
 } from "../controllers/user.controller.js";
-import { requireAuth, requireRole } from "../middleware/auth.middleware.js";
+import { requireAuth, requireMongoUser, requireRole } from "../middleware/auth.middleware.js";
 
 const userRouter = Router();
 
@@ -27,6 +29,8 @@ userRouter.post("/student-login", loginStudent);
 userRouter.get("/me", requireAuth, getCurrentUser);
 userRouter.put("/me", requireAuth, updateCurrentUser);
 userRouter.put("/me/password", requireAuth, changeCurrentUserPassword);
+userRouter.get("/students/accessible", requireAuth, requireMongoUser, getAccessibleStudents);
+userRouter.get("/students/accessible/:studentId", requireAuth, requireMongoUser, getAccessibleStudentById);
 
 userRouter.get("/", requireAuth, requireRole("admin"), getUsers);
 userRouter.get("/:userId", requireAuth, requireRole("admin"), getUserById);

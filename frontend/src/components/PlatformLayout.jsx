@@ -10,6 +10,7 @@ const navItemsByRole = {
   faculty: [
     { to: "/faculty/dashboard", label: "Dashboard" },
     { to: "/faculty/courses", label: "Courses" },
+    { to: "/faculty/students", label: "Students" },
     { to: "/faculty/account", label: "Account" }
   ],
   admin: [

@@ -302,6 +302,34 @@ export function requireStudentMatchOrAdmin(req, res, next) {
     return next();
   }
 
+  if (req.auth.role === "faculty") {
+    pool.query(
+      `
+        SELECT 1
+        FROM course_faculty cf
+        JOIN course_enrollments ce
+          ON ce.course_id = cf.course_id
+         AND ce.status = 'enrolled'
+        WHERE cf.faculty_id = $1
+          AND ce.student_id = $2
+        LIMIT 1
+      `,
+      [req.auth.userId, req.params.studentId]
+    )
+      .then((result) => {
+        if (result.rows.length > 0) {
+          return next();
+        }
+
+        return res.status(403).json({
+          message: "You do not have permission to access this student's data."
+        });
+      })
+      .catch((error) => next(error));
+
+    return;
+  }
+
   return res.status(403).json({
     message: "You do not have permission to access this student's data."
   });

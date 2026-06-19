@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { PlatformLayout, PlatformSection } from "../../components/PlatformLayout";
 import { apiRequest } from "../../utils/api";
 import { getFacultySession } from "../../utils/session";
@@ -168,6 +168,7 @@ export default function FacultyCourseDetails() {
                   <tr>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,6 +176,11 @@ export default function FacultyCourseDetails() {
                     <tr key={student.id}>
                       <td>{student.fullName}</td>
                       <td>{student.email}</td>
+                      <td>
+                        <Link className="auth-button student-button detail-link" to={`/faculty/students/${student.id}/submissions`}>
+                          Review attempts
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

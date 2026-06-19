@@ -65,9 +65,14 @@ export default function FacultyDashboard() {
       }
       meta="Faculty Portal"
       actions={
-        <Link className="auth-button student-button panel-action-button" to="/faculty/courses">
-          Open courses
-        </Link>
+        <>
+          <Link className="auth-button student-button panel-action-button" to="/faculty/courses">
+            Open courses
+          </Link>
+          <Link className="auth-button ghost-button panel-action-button" to="/faculty/students">
+            Review students
+          </Link>
+        </>
       }
       sidebarNote="This faculty area is course-first: every action stays scoped to the courses you have actually been assigned."
     >
@@ -118,6 +123,15 @@ export default function FacultyDashboard() {
             ))}
           </div>
         ) : null}
+      </PlatformSection>
+
+      <PlatformSection label="Student Access" title="Review students in assigned courses">
+        <p className="dashboard-copy">
+          Open the faculty student directory to search only the learners enrolled in your assigned courses and inspect their coding submissions.
+        </p>
+        <Link className="auth-button student-button detail-link" to="/faculty/students">
+          Open student directory
+        </Link>
       </PlatformSection>
     </PlatformLayout>
   );

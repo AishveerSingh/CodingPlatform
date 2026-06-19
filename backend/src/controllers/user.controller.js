@@ -73,6 +73,24 @@ async function fetchUserSummary(userId) {
   return result.rows[0] ? sanitizeUser(result.rows[0]) : null;
 }
 
+async function hasFacultyStudentAccess(facultyId, studentId) {
+  const result = await pool.query(
+    `
+      SELECT 1
+      FROM course_faculty cf
+      JOIN course_enrollments ce
+        ON ce.course_id = cf.course_id
+       AND ce.status = 'enrolled'
+      WHERE cf.faculty_id = $1
+        AND ce.student_id = $2
+      LIMIT 1
+    `,
+    [facultyId, studentId]
+  );
+
+  return result.rows.length > 0;
+}
+
 function normalizeIdentifier(value) {
   return String(value || "")
     .trim()
@@ -581,6 +599,108 @@ export function registerStudent(req, res, next) {
     issueToken: false,
     successMessage: "Student account created successfully."
   });
+}
+
+export async function getAccessibleStudents(req, res, next) {
+  const search = req.query.search?.trim() ?? "";
+
+  try {
+    const values = [];
+    const filters = ["u.role = 'student'"];
+
+    if (req.currentUser.role === "faculty") {
+      values.push(req.currentUser.id);
+      filters.push(`EXISTS (
+        SELECT 1
+        FROM course_faculty cf
+        JOIN course_enrollments ce
+          ON ce.course_id = cf.course_id
+         AND ce.status = 'enrolled'
+        WHERE cf.faculty_id = $${values.length}
+          AND ce.student_id = u.id
+      )`);
+    } else if (req.currentUser.role !== "admin") {
+      return res.status(403).json({
+        message: "You do not have permission to view students."
+      });
+    }
+
+    if (search) {
+      values.push(`%${search}%`);
+      filters.push(`(
+        u.full_name ILIKE $${values.length}
+        OR u.email ILIKE $${values.length}
+        OR sp.roll_number ILIKE $${values.length}
+      )`);
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          u.id,
+          u.full_name,
+          u.email,
+          u.role,
+          u.created_at,
+          COUNT(s.id)::int AS submission_count,
+          COUNT(*) FILTER (WHERE s.status = 'accepted')::int AS accepted_count,
+          sp.roll_number,
+          sp.branch,
+          sp.semester,
+          sp.section,
+          sp.batch
+        FROM users u
+        LEFT JOIN student_profiles sp ON sp.user_id = u.id
+        LEFT JOIN submissions s ON s.student_id = u.id
+        WHERE ${filters.join(" AND ")}
+        GROUP BY
+          u.id,
+          sp.roll_number,
+          sp.branch,
+          sp.semester,
+          sp.section,
+          sp.batch
+        ORDER BY u.created_at DESC
+      `,
+      values
+    );
+
+    res.json(result.rows.map(sanitizeUser));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAccessibleStudentById(req, res, next) {
+  const { studentId } = req.params;
+
+  try {
+    if (req.currentUser.role === "faculty") {
+      const allowed = await hasFacultyStudentAccess(req.currentUser.id, studentId);
+
+      if (!allowed) {
+        return res.status(403).json({
+          message: "You do not have permission to access this student."
+        });
+      }
+    } else if (req.currentUser.role !== "admin") {
+      return res.status(403).json({
+        message: "You do not have permission to access this student."
+      });
+    }
+
+    const user = await fetchUserSummary(studentId);
+
+    if (!user || user.role !== "student") {
+      return res.status(404).json({
+        message: "Student not found."
+      });
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
 }
 
 export function loginStudent(req, res, next) {
