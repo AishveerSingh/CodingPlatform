@@ -21,6 +21,7 @@ export default function AdminProblemCreate() {
   const navigate = useNavigate();
   const session = getAdminSession();
   const [problemForm, setProblemForm] = useState(initialProblemForm);
+  const [hiddenTestCases, setHiddenTestCases] = useState([{ input_data: "", expected_output: "" }]);
   const [status, setStatus] = useState({
     message: "",
     error: ""
@@ -58,6 +59,13 @@ export default function AdminProblemCreate() {
             }
           ]
         : [];
+    const finalHiddenCases = hiddenTestCases
+      .map((tc, index) => ({
+        input_data: tc.input_data.trim(),
+        expected_output: tc.expected_output.trim(),
+        sort_order: index
+      }))
+      .filter((tc) => tc.input_data || tc.expected_output);
 
     try {
       const response = await fetch(`${apiBaseUrl}/problems`, {
@@ -75,7 +83,8 @@ export default function AdminProblemCreate() {
           constraintsText: problemForm.constraintsText,
           examplesText: problemForm.examplesText,
           tags,
-          sampleTestCases
+          sampleTestCases,
+          hiddenTestCases: finalHiddenCases
         })
       });
 
@@ -90,6 +99,7 @@ export default function AdminProblemCreate() {
         error: ""
       });
       setProblemForm(initialProblemForm);
+      setHiddenTestCases([{ input_data: "", expected_output: "" }]);
 
       navigate("/admin/problems", {
         state: {
@@ -249,6 +259,89 @@ export default function AdminProblemCreate() {
               />
             </div>
           </div>
+
+          <div style={{ margin: "2rem 0 1rem", borderTop: "1px solid rgba(148, 163, 184, 0.12)", paddingTop: "1rem" }} />
+          <h3>Hidden Test Cases (Admin Only)</h3>
+          <p className="detail-copy" style={{ marginTop: 0 }}>
+            These test cases are hidden from students and used to evaluate their submissions.
+          </p>
+
+          {hiddenTestCases.map((tc, index) => (
+            <div key={index} className="detail-grid detail-grid-tight" style={{ border: "1px solid rgba(148, 163, 184, 0.16)", borderRadius: "16px", padding: "1.2rem", marginBottom: "1rem", position: "relative" }}>
+              <div style={{ position: "absolute", top: "0.8rem", right: "0.8rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="platform-sidebar-label">Case #{index + 1}</span>
+                {hiddenTestCases.length > 1 ? (
+                  <button
+                    type="button"
+                    className="auth-button danger-button"
+                    style={{ margin: 0, padding: "0.25rem 0.6rem", fontSize: "0.75rem", borderRadius: "8px" }}
+                    onClick={() => {
+                      setHiddenTestCases(hiddenTestCases.filter((_, i) => i !== index));
+                    }}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+
+              <div style={{ marginTop: "1rem" }}>
+                <label className="form-field" htmlFor={`hidden-input-${index}`}>
+                  Hidden Input
+                </label>
+                <textarea
+                  id={`hidden-input-${index}`}
+                  rows="3"
+                  placeholder="e.g. 7 8"
+                  value={tc.input_data}
+                  onChange={(e) => {
+                    const newCases = [...hiddenTestCases];
+                    newCases[index].input_data = e.target.value;
+                    setHiddenTestCases(newCases);
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginTop: "1rem" }}>
+                <label className="form-field" htmlFor={`hidden-output-${index}`}>
+                  Hidden Expected Output
+                </label>
+                <textarea
+                  id={`hidden-output-${index}`}
+                  rows="3"
+                  placeholder="e.g. 15"
+                  value={tc.expected_output}
+                  onChange={(e) => {
+                    const newCases = [...hiddenTestCases];
+                    newCases[index].expected_output = e.target.value;
+                    setHiddenTestCases(newCases);
+                  }}
+                  required
+                />
+              </div>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            className="auth-button ghost-button"
+            style={{
+              marginTop: "0.5rem",
+              background: "transparent",
+              border: "1px solid rgba(251, 146, 60, 0.4)",
+              color: "#f8fafc",
+              padding: "0.6rem 1.2rem",
+              fontSize: "0.9rem",
+              borderRadius: "999px"
+            }}
+            onClick={() => {
+              setHiddenTestCases([...hiddenTestCases, { input_data: "", expected_output: "" }]);
+            }}
+          >
+            + Add Hidden Test Case
+          </button>
+
+          <div style={{ margin: "2rem 0 1rem" }} />
 
           <button
             className="auth-button admin-button"

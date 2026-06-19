@@ -1,5 +1,6 @@
 import { pool } from "../config/db.js";
 import { logAdminAction } from "../utils/adminLog.js";
+import { verifyAuthToken } from "../utils/auth.js";
 
 function normalizeTags(rawTags) {
   if (!Array.isArray(rawTags)) {
@@ -9,18 +10,18 @@ function normalizeTags(rawTags) {
   return [...new Set(rawTags.map((tag) => tag?.trim().toLowerCase()).filter(Boolean))];
 }
 
-function normalizeSampleTestCases(rawCases) {
+function normalizeTestCases(rawCases) {
   if (!Array.isArray(rawCases)) {
     return [];
   }
 
   return rawCases
     .map((entry, index) => ({
-      input_data: entry?.input_data?.trim() ?? "",
-      expected_output: entry?.expected_output?.trim() ?? "",
+      input_data: entry?.input_data ?? "",
+      expected_output: entry?.expected_output ?? "",
       sort_order: typeof entry?.sort_order === "number" ? entry.sort_order : index
     }))
-    .filter((entry) => entry.input_data && entry.expected_output);
+    .filter((entry) => entry.input_data.trim() || entry.expected_output.trim());
 }
 
 async function replaceProblemTags(client, problemId, tags) {
@@ -37,22 +38,25 @@ async function replaceProblemTags(client, problemId, tags) {
   }
 }
 
-async function replaceSampleTestCases(client, problemId, sampleTestCases) {
-  await client.query("DELETE FROM test_cases WHERE problem_id = $1 AND is_sample = TRUE", [problemId]);
+async function replaceTestCases(client, problemId, testCases, isSample) {
+  await client.query("DELETE FROM test_cases WHERE problem_id = $1 AND is_sample = $2", [
+    problemId,
+    isSample
+  ]);
 
-  for (const testCase of sampleTestCases) {
+  for (const testCase of testCases) {
     await client.query(
       `
         INSERT INTO test_cases (problem_id, input_data, expected_output, is_sample, sort_order)
-        VALUES ($1, $2, $3, TRUE, $4)
+        VALUES ($1, $2, $3, $4, $5)
       `,
-      [problemId, testCase.input_data, testCase.expected_output, testCase.sort_order]
+      [problemId, testCase.input_data, testCase.expected_output, isSample, testCase.sort_order]
     );
   }
 }
 
-async function fetchProblemMetadata(client, problemId) {
-  const [tagResult, sampleResult] = await Promise.all([
+async function fetchProblemMetadata(client, problemId, includeHidden = false) {
+  const queries = [
     client.query(
       `
         SELECT tag_name
@@ -71,11 +75,28 @@ async function fetchProblemMetadata(client, problemId) {
       `,
       [problemId]
     )
-  ]);
+  ];
+
+  if (includeHidden) {
+    queries.push(
+      client.query(
+        `
+          SELECT id, input_data, expected_output, sort_order
+          FROM test_cases
+          WHERE problem_id = $1 AND is_sample = FALSE
+          ORDER BY sort_order ASC, created_at ASC
+        `,
+        [problemId]
+      )
+    );
+  }
+
+  const results = await Promise.all(queries);
 
   return {
-    tags: tagResult.rows.map((row) => row.tag_name),
-    sample_test_cases: sampleResult.rows
+    tags: results[0].rows.map((row) => row.tag_name),
+    sample_test_cases: results[1].rows,
+    hidden_test_cases: includeHidden ? results[2].rows : []
   };
 }
 
@@ -160,7 +181,19 @@ export async function getProblemById(req, res, next) {
       });
     }
 
-    const metadata = await fetchProblemMetadata(pool, problemId);
+    let isAdmin = false;
+    const authorizationHeader = req.headers.authorization;
+    if (authorizationHeader?.startsWith("Bearer ")) {
+      const token = authorizationHeader.slice("Bearer ".length).trim();
+      try {
+        const payload = verifyAuthToken(token);
+        if (payload?.role === "admin") {
+          isAdmin = true;
+        }
+      } catch (_err) {}
+    }
+
+    const metadata = await fetchProblemMetadata(pool, problemId, isAdmin);
     res.json({
       ...result.rows[0],
       ...metadata
@@ -180,7 +213,8 @@ export async function createProblem(req, res, next) {
     constraintsText = "",
     examplesText = "",
     tags = [],
-    sampleTestCases = []
+    sampleTestCases = [],
+    hiddenTestCases = []
   } = req.body;
 
   if (!title?.trim() || !difficulty?.trim() || !statement?.trim()) {
@@ -196,7 +230,8 @@ export async function createProblem(req, res, next) {
   }
 
   const normalizedTags = normalizeTags(tags);
-  const normalizedSampleTestCases = normalizeSampleTestCases(sampleTestCases);
+  const normalizedSampleTestCases = normalizeTestCases(sampleTestCases);
+  const normalizedHiddenTestCases = normalizeTestCases(hiddenTestCases);
   const client = await pool.connect();
 
   try {
@@ -230,7 +265,8 @@ export async function createProblem(req, res, next) {
     const problem = result.rows[0];
 
     await replaceProblemTags(client, problem.id, normalizedTags);
-    await replaceSampleTestCases(client, problem.id, normalizedSampleTestCases);
+    await replaceTestCases(client, problem.id, normalizedSampleTestCases, true);
+    await replaceTestCases(client, problem.id, normalizedHiddenTestCases, false);
 
     await logAdminAction({
       db: client,
@@ -241,13 +277,14 @@ export async function createProblem(req, res, next) {
       details: {
         title: problem.title,
         tag_count: normalizedTags.length,
-        sample_test_case_count: normalizedSampleTestCases.length
+        sample_test_case_count: normalizedSampleTestCases.length,
+        hidden_test_case_count: normalizedHiddenTestCases.length
       }
     });
 
     await client.query("COMMIT");
 
-    const metadata = await fetchProblemMetadata(pool, problem.id);
+    const metadata = await fetchProblemMetadata(pool, problem.id, true);
     res.status(201).json({
       message: "Coding question added successfully.",
       problem: {
@@ -274,7 +311,8 @@ export async function updateProblem(req, res, next) {
     constraintsText = "",
     examplesText = "",
     tags = [],
-    sampleTestCases = []
+    sampleTestCases = [],
+    hiddenTestCases = []
   } = req.body;
 
   if (!title?.trim() || !difficulty?.trim() || !statement?.trim()) {
@@ -290,7 +328,8 @@ export async function updateProblem(req, res, next) {
   }
 
   const normalizedTags = normalizeTags(tags);
-  const normalizedSampleTestCases = normalizeSampleTestCases(sampleTestCases);
+  const normalizedSampleTestCases = normalizeTestCases(sampleTestCases);
+  const normalizedHiddenTestCases = normalizeTestCases(hiddenTestCases);
   const client = await pool.connect();
 
   try {
@@ -331,7 +370,8 @@ export async function updateProblem(req, res, next) {
 
     const problem = result.rows[0];
     await replaceProblemTags(client, problemId, normalizedTags);
-    await replaceSampleTestCases(client, problemId, normalizedSampleTestCases);
+    await replaceTestCases(client, problemId, normalizedSampleTestCases, true);
+    await replaceTestCases(client, problemId, normalizedHiddenTestCases, false);
 
     await logAdminAction({
       db: client,
@@ -342,13 +382,14 @@ export async function updateProblem(req, res, next) {
       details: {
         title: problem.title,
         tag_count: normalizedTags.length,
-        sample_test_case_count: normalizedSampleTestCases.length
+        sample_test_case_count: normalizedSampleTestCases.length,
+        hidden_test_case_count: normalizedHiddenTestCases.length
       }
     });
 
     await client.query("COMMIT");
 
-    const metadata = await fetchProblemMetadata(pool, problemId);
+    const metadata = await fetchProblemMetadata(pool, problemId, true);
     res.json({
       message: "Coding question updated successfully.",
       problem: {

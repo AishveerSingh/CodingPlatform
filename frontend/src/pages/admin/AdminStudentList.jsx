@@ -17,6 +17,59 @@ export default function AdminStudentList() {
     error: ""
   });
 
+  const [activeResetStudentId, setActiveResetStudentId] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetStatus, setResetStatus] = useState({ message: "", error: "" });
+  const [isResetting, setIsResetting] = useState(false);
+
+  async function handleResetPassword(event, studentId) {
+    event.preventDefault();
+    if (newPassword.trim().length < 8) {
+      setResetStatus({
+        message: "",
+        error: "Password must be at least 8 characters long."
+      });
+      return;
+    }
+
+    setIsResetting(true);
+    setResetStatus({ message: "", error: "" });
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/users/${studentId}/reset-password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(session?.token)
+        },
+        body: JSON.stringify({ newPassword: newPassword.trim() })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to reset password.");
+      }
+
+      setResetStatus({
+        message: data.message || "Password reset successfully.",
+        error: ""
+      });
+      setNewPassword("");
+      setTimeout(() => {
+        setActiveResetStudentId(null);
+        setResetStatus({ message: "", error: "" });
+      }, 3000);
+    } catch (error) {
+      setResetStatus({
+        message: "",
+        error: error.message
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
+
   function handleExpiredAdminSession(message = "Your admin session expired. Please log in again.") {
     clearAdminSession();
     setStudents([]);
@@ -174,12 +227,88 @@ export default function AdminStudentList() {
                       <span>{student.submission_count} submissions</span>
                       <span>{student.accepted_count} accepted</span>
                     </div>
-                    <Link
-                      className="auth-button admin-button detail-link inline-link-button"
-                      to={`/admin/students/${student.id}/submissions`}
-                    >
-                      View submissions
-                    </Link>
+                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+                      <Link
+                        className="auth-button admin-button detail-link inline-link-button"
+                        to={`/admin/students/${student.id}/submissions`}
+                        style={{ flex: 1, textAlign: "center", marginTop: 0 }}
+                      >
+                        View submissions
+                      </Link>
+                      <button
+                        className="auth-button ghost-button detail-link inline-link-button"
+                        type="button"
+                        style={{
+                          flex: 1,
+                          marginTop: 0,
+                          background: "transparent",
+                          border: "1px solid rgba(251, 146, 60, 0.4)",
+                          color: "#f8fafc"
+                        }}
+                        onClick={() => {
+                          if (activeResetStudentId === student.id) {
+                            setActiveResetStudentId(null);
+                            setNewPassword("");
+                            setResetStatus({ message: "", error: "" });
+                          } else {
+                            setActiveResetStudentId(student.id);
+                            setNewPassword("");
+                            setResetStatus({ message: "", error: "" });
+                          }
+                        }}
+                      >
+                        {activeResetStudentId === student.id ? "Cancel" : "Reset Password"}
+                      </button>
+                    </div>
+
+                    {activeResetStudentId === student.id ? (
+                      <form
+                        className="auth-form"
+                        onSubmit={(e) => handleResetPassword(e, student.id)}
+                        style={{
+                          marginTop: "1.2rem",
+                          padding: "1rem",
+                          border: "1px solid rgba(148, 163, 184, 0.16)",
+                          borderRadius: "16px",
+                          background: "rgba(15, 23, 42, 0.4)"
+                        }}
+                      >
+                        <span className="platform-sidebar-label" style={{ display: "block", marginBottom: "0.5rem" }}>
+                          New Password
+                        </span>
+                        <input
+                          type="password"
+                          placeholder="Min 8 characters"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          minLength={8}
+                          required
+                          style={{
+                            width: "100%",
+                            padding: "0.75rem 1rem",
+                            border: "1px solid rgba(148, 163, 184, 0.24)",
+                            borderRadius: "14px",
+                            background: "rgba(241, 245, 249, 0.96)",
+                            color: "#0f172a",
+                            outline: "none"
+                          }}
+                        />
+                        <button
+                          className="auth-button admin-button"
+                          type="submit"
+                          disabled={isResetting}
+                          style={{ width: "100%", padding: "0.75rem", fontSize: "0.9rem" }}
+                        >
+                          {isResetting ? "Resetting..." : "Confirm Reset"}
+                        </button>
+                        {resetStatus.message ? (
+                          <p className="form-status success" style={{ fontSize: "0.9rem" }}>{resetStatus.message}</p>
+                        ) : null}
+                        {resetStatus.error ? (
+                          <p className="form-status error" style={{ fontSize: "0.9rem" }}>{resetStatus.error}</p>
+                        ) : null}
+                      </form>
+                    ) : null}
                   </article>
                 ))}
               </div>

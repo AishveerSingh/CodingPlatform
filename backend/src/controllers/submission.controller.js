@@ -93,29 +93,15 @@ export async function createSubmission(req, res, next) {
       });
     }
 
-    const hiddenTestCaseResult = await client.query(
+    const testCaseResult = await client.query(
       `
         SELECT id, input_data, expected_output, is_sample, sort_order
         FROM test_cases
         WHERE problem_id = $1
-          AND is_sample = FALSE
-        ORDER BY sort_order ASC, created_at ASC
+        ORDER BY is_sample DESC, sort_order ASC, created_at ASC
       `,
       [problemId]
     );
-
-    const testCaseResult =
-      hiddenTestCaseResult.rows.length > 0
-        ? hiddenTestCaseResult
-        : await client.query(
-            `
-              SELECT id, input_data, expected_output, is_sample, sort_order
-              FROM test_cases
-              WHERE problem_id = $1
-              ORDER BY sort_order ASC, created_at ASC
-            `,
-            [problemId]
-          );
 
     const normalizedLanguage = language.trim().toLowerCase();
     const executionResult = await executeSubmission({

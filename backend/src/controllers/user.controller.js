@@ -523,6 +523,79 @@ export function loginAdmin(req, res, next) {
   return loginUser(req, res, next, "admin");
 }
 
+export async function resetStudentPassword(req, res, next) {
+  const { userId } = req.params;
+  const { newPassword } = req.body;
+
+  if (!newPassword?.trim()) {
+    return res.status(400).json({
+      message: "New password is required."
+    });
+  }
+
+  if (newPassword.trim().length < 8) {
+    return res.status(400).json({
+      message: "New password must be at least 8 characters long."
+    });
+  }
+
+  try {
+    const userResult = await pool.query(
+      `
+        SELECT id, role, full_name, email
+        FROM users
+        WHERE id = $1
+      `,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        message: "User not found."
+      });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    if (targetUser.role !== "student") {
+      return res.status(400).json({
+        message: "Only student passwords can be reset by admins."
+      });
+    }
+
+    const passwordHash = await hashPassword(newPassword.trim());
+
+    await pool.query(
+      `
+        UPDATE users
+        SET password_hash = $1
+        WHERE id = $2
+      `,
+      [passwordHash, userId]
+    );
+
+    await pool.query(
+      `
+        INSERT INTO admin_logs (admin_id, action_type, target_type, target_id, details)
+        VALUES ($1, $2, $3, $4, $5)
+      `,
+      [
+        req.auth.userId,
+        "reset_password",
+        "user",
+        userId,
+        JSON.stringify({ email: targetUser.email, full_name: targetUser.full_name })
+      ]
+    );
+
+    res.json({
+      message: `Password for ${targetUser.full_name} has been reset successfully.`
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export function registerFaculty(req, res, next) {
   return registerUser(req, res, next, "faculty");
 }
