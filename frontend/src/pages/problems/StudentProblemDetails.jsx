@@ -30,7 +30,7 @@ const pairedCharacters = {
 const languageSuggestions = {
   python: [
     { label: "def", insertText: "def function_name():\n    " },
-    { label: "for", insertText: "for item in items:\n    " },
+    { label: "for", insertText: "for    in    :\n    " },
     { label: "if", insertText: "if condition:\n    " },
     { label: "elif", insertText: "elif condition:\n    " },
     { label: "else", insertText: "else:\n    " },
@@ -159,6 +159,25 @@ function escapeHtml(value) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function readStoredObject(storageKey) {
+  try {
+    const storedValue = localStorage.getItem(storageKey);
+
+    if (!storedValue) {
+      return {};
+    }
+
+    const parsedValue = JSON.parse(storedValue);
+    return parsedValue && typeof parsedValue === "object" ? parsedValue : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function getSolvedTimeStorageKey(problemId) {
+  return `coding_platform_problem_solved_${problemId}`;
 }
 
 function highlightCode(sourceCode, language) {
@@ -373,7 +392,7 @@ export default function StudentProblemDetails() {
   useEffect(() => {
     setIsDraftReady(false);
 
-    const savedDrafts = JSON.parse(localStorage.getItem(editorDraftStorageKey) || "{}");
+    const savedDrafts = readStoredObject(editorDraftStorageKey);
     const savedDraft = savedDrafts[problemId];
 
     if (!savedDraft) {
@@ -394,7 +413,7 @@ export default function StudentProblemDetails() {
       return;
     }
 
-    const savedDrafts = JSON.parse(localStorage.getItem(editorDraftStorageKey) || "{}");
+    const savedDrafts = readStoredObject(editorDraftStorageKey);
     savedDrafts[problemId] = {
       language: editor.language,
       sourceCode: editor.sourceCode
@@ -522,37 +541,20 @@ export default function StudentProblemDetails() {
     setLatestExecutionDetails(latestSubmission?.compiler_output || "");
   }, [latestSubmission]);
 
-//   useEffect(() => {
-//     setRunResults(null);
-//     setRunMessage("");
-//     setSubmissionMessage("");
-//     setLatestSubmitResults([]);
-//     setLatestSubmitExecution(null);
-//     setSubmissionHistory([]);
-//     setHistoryStatus({
-//       loading: Boolean(student?.id),
-//       error: ""
-//     });
-//   }, [problemId, student?.id]);
-//     setShowRunDetails(false);
-//     setShowSubmissionDetails(false);
-//   }, [problemId]);
   useEffect(() => {
-  setRunResults(null);
-  setRunMessage("");
-  setSubmissionMessage("");
-  setLatestSubmitResults([]);
-  setLatestSubmitExecution(null);
-
-  setSubmissionHistory([]);
-  setHistoryStatus({
-    loading: Boolean(student?.id),
-    error: ""
-  });
-
-  setShowRunDetails(false);
-  setShowSubmissionDetails(false);
-}, [problemId, student?.id]);
+    setRunResults(null);
+    setRunMessage("");
+    setSubmissionMessage("");
+    setLatestSubmitResults([]);
+    setLatestSubmitExecution(null);
+    setSubmissionHistory([]);
+    setHistoryStatus({
+      loading: Boolean(student?.id),
+      error: ""
+    });
+    setShowRunDetails(false);
+    setShowSubmissionDetails(false);
+  }, [problemId, student?.id]);
 
   useEffect(() => {
     if (!toast.visible) {
@@ -576,17 +578,26 @@ export default function StudentProblemDetails() {
       return undefined;
     }
 
-    const solvedTimeKey = `coding_platform_problem_solved_${problemId}`;
+    const solvedTimeKey = getSolvedTimeStorageKey(problemId);
     const savedSolvedTime = localStorage.getItem(solvedTimeKey);
 
     if (isSolved) {
       if (savedSolvedTime !== null) {
-        setElapsedSeconds(parseInt(savedSolvedTime, 10));
+        const parsedSolvedTime = Number.parseInt(savedSolvedTime, 10);
+        const normalizedSolvedTime = Number.isNaN(parsedSolvedTime) ? 0 : parsedSolvedTime;
+
+        setElapsedSeconds(normalizedSolvedTime);
+        setTimerState({
+          isRunning: false,
+          startedAt: 0,
+          elapsedBeforePause: normalizedSolvedTime
+        });
       }
+
       return undefined;
     }
 
-    const savedTimers = JSON.parse(localStorage.getItem(problemTimerStorageKey) || "{}");
+    const savedTimers = readStoredObject(problemTimerStorageKey);
     const savedTimer = savedTimers[problemId];
     const normalizedTimer =
       savedTimer && typeof savedTimer === "object"
@@ -630,23 +641,46 @@ export default function StudentProblemDetails() {
 
   useEffect(() => {
     if (isSolved && problemId) {
-      const solvedTimeKey = `coding_platform_problem_solved_${problemId}`;
+      const solvedTimeKey = getSolvedTimeStorageKey(problemId);
       const savedSolvedTime = localStorage.getItem(solvedTimeKey);
-      if (savedSolvedTime === null) {
-        setElapsedSeconds((current) => {
-          localStorage.setItem(solvedTimeKey, String(current));
-          return current;
+
+      let frozenElapsedSeconds = Number.parseInt(savedSolvedTime || "", 10);
+
+      if (Number.isNaN(frozenElapsedSeconds)) {
+        frozenElapsedSeconds =
+          timerState.elapsedBeforePause +
+          (timerState.isRunning
+            ? Math.max(0, Math.floor((Date.now() - timerState.startedAt) / 1000))
+            : 0);
+        localStorage.setItem(solvedTimeKey, String(frozenElapsedSeconds));
+      }
+
+      if (
+        timerState.isRunning ||
+        timerState.startedAt !== 0 ||
+        timerState.elapsedBeforePause !== frozenElapsedSeconds
+      ) {
+        setTimerState({
+          isRunning: false,
+          startedAt: 0,
+          elapsedBeforePause: frozenElapsedSeconds
         });
       }
+
+      setElapsedSeconds(frozenElapsedSeconds);
     }
-  }, [isSolved, problemId]);
+  }, [isSolved, problemId, timerState]);
 
   useEffect(() => {
     if (!problemId) {
       return;
     }
 
-    const savedTimers = JSON.parse(localStorage.getItem(problemTimerStorageKey) || "{}");
+    if (isSolved) {
+      return;
+    }
+
+    const savedTimers = readStoredObject(problemTimerStorageKey);
     savedTimers[problemId] = timerState;
     localStorage.setItem(problemTimerStorageKey, JSON.stringify(savedTimers));
 
@@ -659,7 +693,7 @@ export default function StudentProblemDetails() {
       timerState.elapsedBeforePause +
         Math.max(0, Math.floor((Date.now() - timerState.startedAt) / 1000))
     );
-  }, [problemId, timerState]);
+  }, [isSolved, problemId, timerState]);
 
   function updateSuggestionState(sourceCode, cursorPosition, language) {
     const suggestionResult = buildSuggestions(sourceCode, cursorPosition, language);
@@ -824,12 +858,6 @@ export default function StudentProblemDetails() {
       applyEditorValue(nextSourceCode, selectionStart - 1);
       return;
     }
-
-    if (event.key === "Enter" && value[selectionStart - 1] === "{" && nextCharacter === "}") {
-      event.preventDefault();
-      const nextSourceCode = `${value.slice(0, selectionStart)}\n  \n${value.slice(selectionEnd)}`;
-      applyEditorValue(nextSourceCode, selectionStart + 3);
-    }
   }
 
   function handleEditorScroll(event) {
@@ -976,7 +1004,7 @@ export default function StudentProblemDetails() {
 
   function handleTimerStart() {
     setTimerState((currentTimerState) => {
-      if (currentTimerState.isRunning) {
+      if (isSolved || currentTimerState.isRunning) {
         return currentTimerState;
       }
 
@@ -990,7 +1018,7 @@ export default function StudentProblemDetails() {
 
   function handleTimerPause() {
     setTimerState((currentTimerState) => {
-      if (!currentTimerState.isRunning) {
+      if (isSolved || !currentTimerState.isRunning) {
         return currentTimerState;
       }
 
@@ -1005,6 +1033,14 @@ export default function StudentProblemDetails() {
   }
 
   function handleTimerReset() {
+    if (problemId) {
+      localStorage.removeItem(getSolvedTimeStorageKey(problemId));
+
+      const savedTimers = readStoredObject(problemTimerStorageKey);
+      delete savedTimers[problemId];
+      localStorage.setItem(problemTimerStorageKey, JSON.stringify(savedTimers));
+    }
+
     setTimerState(initialTimerState);
     setElapsedSeconds(0);
   }
@@ -1449,7 +1485,6 @@ export default function StudentProblemDetails() {
 
                 {consoleTab === "results" && (
                   <>
-                  //
                     {/* Run Results */}
                     {runResults && (
                       <>
@@ -1627,207 +1662,13 @@ export default function StudentProblemDetails() {
                           </article>
                         ))}
                       </div>
-//                     <button
-//                       className="workspace-disclosure-button"
-//                       type="button"
-//                       onClick={() => setShowRunDetails((currentValue) => !currentValue)}
-//                     >
-//                       {showRunDetails ? "Hide test case details" : "Open test case details"}
-//                     </button>
-
-//                     {showRunDetails ? (
-//                       <>
-//                         <div className="workspace-result-overview testcase-overview">
-//                           <article className="workspace-result-card">
-//                             <span>Run verdict</span>
-//                             <strong>{runResults.verdictLabel || runResults.status.replaceAll("_", " ")}</strong>
-//                           </article>
-//                           <article className="workspace-result-card">
-//                             <span>Passed</span>
-//                             <strong>
-//                               {runResults.passedTestCases}/{runResults.totalTestCases}
-//                             </strong>
-//                           </article>
-//                           <article className="workspace-result-card">
-//                             <span>Error type</span>
-//                             <strong>{latestRunErrorType}</strong>
-//                           </article>
-//                           <article className="workspace-result-card">
-//                             <span>Runtime</span>
-//                             <strong>{runResults.executionTimeMs ?? "-"} ms</strong>
-//                           </article>
-//                         </div>
-
-//                         <div className="sample-case-list testcase-result-list">
-//                           {(runResults.testCaseResults || []).map((testCaseResult, index) => (
-//                             <article className="sample-case-card testcase-result-card" key={testCaseResult.id || index}>
-//                               <div className="sample-case-header">
-//                                 <strong>Test case {index + 1}</strong>
-//                                 <span
-//                                   className={`status-pill ${
-//                                     testCaseResult.passed ? "accepted" : "wrong_answer"
-//                                   }`}
-//                                 >
-//                                   {testCaseResult.passed ? "accepted" : "failed"}
-//                                 </span>
-//                               </div>
-//                               <div className="sample-case-block">
-//                                 <span>Input</span>
-//                                 <p className="history-snippet">{testCaseResult.input || "(empty)"}</p>
-//                               </div>
-//                               <div className="sample-case-block">
-//                                 <span>Expected output</span>
-//                                 <p className="history-snippet">{testCaseResult.expectedOutput || "(empty)"}</p>
-//                               </div>
-//                               <div className="sample-case-block">
-//                                 <span>Your output</span>
-//                                 <p className="history-snippet">{testCaseResult.actualOutput || "(empty)"}</p>
-//                               </div>
-//                               {testCaseResult.stderr ? (
-//                                 <div className="sample-case-block">
-//                                   <span>Error output</span>
-//                                   <p className="history-snippet">{testCaseResult.stderr}</p>
-//                                 </div>
-//                               ) : null}
-//                             </article>
-//                           ))}
-//                         </div>
-
-//                         {runResults.stderr ? (
-//                           <div className="workspace-subsection">
-//                             <div className="workspace-section-heading">
-//                               <h3>Run error output</h3>
-//                               <span className="workspace-section-tag">
-//                                 {runResults.verdictLabel || "Execution error"}
-//                               </span>
-//                             </div>
-//                             <pre className="history-snippet workspace-console-output">{runResults.stderr}</pre>
-//                           </div>
-//                         ) : null}
-//                       </>
-//                     ) : null}
-//                   </>
-//                 )}
-//             </section>
-
-
-//               <aside className="detail-block workspace-column submission-column">
-//                 <div className="workspace-column-header">
-//                   <div>
-//                     <p className="auth-kicker">Result Console</p>
-//                     <h2>Hidden verdict and submissions</h2>
-//                   </div>
-//                   <span className="question-count">{submissionHistory.length} runs</span>
-//                 </div>
-
-//                 {submissionMessage ? (
-//                   <p className={`form-status ${submissionMessageClassName}`}>{submissionMessage}</p>
-//                 ) : null}
-//                 {historyStatus.loading ? <p className="dashboard-copy">Loading submission history...</p> : null}
-//                 {historyStatus.error ? <p className="form-status error">{historyStatus.error}</p> : null}
-
-//                 {submissionHistory.length > 0 ? (
-//                   <button
-//                     className="workspace-disclosure-button"
-//                     type="button"
-//                     onClick={() => setShowSubmissionDetails((currentValue) => !currentValue)}
-//                   >
-//                     {showSubmissionDetails ? "Hide submission details" : "Open submission details"}
-//                   </button>
-//                 ) : null}
-
-//                 {showSubmissionDetails ? (
-//                   <div className="workspace-result-overview">
-//                     <article className="workspace-result-card">
-//                       <span>Latest verdict</span>
-//                       <strong>
-//                         {latestSubmitExecution?.verdictLabel ||
-//                           (latestSubmission ? latestSubmission.status.replaceAll("_", " ") : "No runs yet")}
-//                       </strong>
-//                     </article>
-//                     <article className="workspace-result-card">
-//                       <span>Passed tests</span>
-//                       <strong>
-//                         {latestSubmission
-//                           ? `${latestSubmission.passed_test_cases}/${latestSubmission.total_test_cases}`
-//                           : "-/-"}
-//                       </strong>
-//                     </article>
-//                     <article className="workspace-result-card">
-//                       <span>Failed tests</span>
-//                       <strong>{latestSubmission ? failedTestCount : "-"}</strong>
-//                     </article>
-//                     <article className="workspace-result-card">
-//                       <span>Error type</span>
-//                       <strong>{latestSubmission ? latestSubmitErrorType : "-"}</strong>
-//                     </article>
-//                     <article className="workspace-result-card">
-//                       <span>Runtime</span>
-//                       <strong>{latestSubmission ? `${latestSubmission.execution_time_ms ?? "-"} ms` : "-"}</strong>
-//                     </article>
-//                   </div>
-//                 ) : null}
-
-//                 {showSubmissionDetails && latestExecutionDetails ? (
-//                   <div className="workspace-subsection workspace-result-log">
-//                     <div className="workspace-section-heading">
-//                       <h3>Latest execution log</h3>
-//                       <span className="workspace-section-tag">Compiler and runtime feedback</span>
-//                     </div>
-//                     <pre className="history-snippet workspace-console-output">{latestExecutionDetails}</pre>
-//                   </div>
-//                 ) : null}
-
-//                 {showSubmissionDetails && latestSubmitExecution?.stderr ? (
-//                   <div className="workspace-subsection">
-//                     <div className="workspace-section-heading">
-//                       <h3>Error output</h3>
-//                       <span className="workspace-section-tag">Compiler or runtime stream</span>
-//                     </div>
-//                     <pre className="history-snippet workspace-console-output">
-//                       {latestSubmitExecution.stderr}
-//                     </pre>
-//                   </div>
-//                 ) : null}
-
-//                 {!historyStatus.loading && !historyStatus.error && submissionHistory.length === 0 ? (
-//                   <p className="dashboard-copy">No submissions yet. Send your first solution above.</p>
-//                 ) : null}
-//                 {!historyStatus.loading &&
-//                 !historyStatus.error &&
-//                 submissionHistory.length > 0 &&
-//                 showSubmissionDetails ? (
-//                   <div className="history-list workspace-history-list">
-//                     {submissionHistory.map((submission) => (
-//                       <article className="history-card workspace-history-card" key={submission.id}>
-//                         <div className="question-card-top">
-//                           <span className={`status-pill ${submission.status}`}>
-//                             {submission.status.replaceAll("_", " ")}
-//                           </span>
-//                           <span className="question-meta">
-//                             {new Date(submission.submitted_at).toLocaleString()}
-//                           </span>
-//                         </div>
-//                         <strong>{submission.language.toUpperCase()}</strong>
-//                         <p className="question-meta">
-//                           {submission.passed_test_cases}/{submission.total_test_cases} passed |{" "}
-//                           {Math.max(
-//                             (submission.total_test_cases || 0) - (submission.passed_test_cases || 0),
-//                             0
-//                           )} failed | {submission.execution_time_ms ?? "-"} ms
-//                         </p>
-//                         {submission.compiler_output ? (
-//                           <p className="question-meta">{submission.compiler_output.split("\n")[0]}</p>
-//                         ) : null}
-//                         <p className="history-snippet">{submission.source_code}</p>
-//                       </article>
-//                     ))}
-//                   </div>
-//                 ) : null}
-//               </aside>
+                    ) : null}
+                  </>
+                )}
 
             </section>
           </section>
+        </section>
         ) : null}
 
         <div className="detail-actions">
