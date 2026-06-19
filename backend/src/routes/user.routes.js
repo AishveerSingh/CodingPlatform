@@ -5,8 +5,10 @@ import {
   getUserById,
   getUsers,
   loginAdmin,
+  loginFaculty,
   loginStudent,
   registerAdmin,
+  registerFaculty,
   registerStudent,
   updateCurrentUser
 } from "../controllers/user.controller.js";
@@ -16,6 +18,8 @@ const userRouter = Router();
 
 userRouter.post("/admin-register", registerAdmin);
 userRouter.post("/admin-login", loginAdmin);
+userRouter.post("/faculty-register", registerFaculty);
+userRouter.post("/faculty-login", loginFaculty);
 userRouter.post("/student-register", registerStudent);
 userRouter.post("/student-login", loginStudent);
 

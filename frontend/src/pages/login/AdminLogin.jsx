@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveAdminSession } from "../../utils/session";
+import { apiRequest } from "../../utils/api";
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const initialForm = {
   fullName: "",
   email: "",
@@ -41,8 +41,7 @@ export default function AdminLogin() {
       message: ""
     });
 
-    const endpoint = mode === "register" ? "/users/admin-register" : "/users/admin-login";
-    const payload =
+    const authPayload =
       mode === "register"
         ? form
         : {
@@ -51,18 +50,28 @@ export default function AdminLogin() {
           };
 
     try {
-      const response = await fetch(`${apiBaseUrl}${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
+      let data;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to authenticate admin.");
+      try {
+        data = await apiRequest(
+          mode === "register" ? "/auth/register/admin" : "/auth/login/admin",
+          {
+            method: "POST",
+            body: JSON.stringify(authPayload)
+          }
+        );
+      } catch (_error) {
+        data = await apiRequest(
+          mode === "register" ? "/users/admin-register" : "/users/admin-login",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              fullName: form.fullName,
+              email: form.email,
+              password: form.password
+            })
+          }
+        );
       }
 
       const session = {

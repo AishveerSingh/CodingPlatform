@@ -245,6 +245,10 @@ a {
   margin-top: 2rem;
 }
 
+.landing-actions-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .landing-stat-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -388,6 +392,7 @@ a {
   }
 
   .landing-actions,
+  .landing-actions-three,
   .language-grid,
   .landing-stat-strip {
     grid-template-columns: 1fr;
@@ -457,6 +462,12 @@ a {
   background:
     radial-gradient(circle at top right, rgba(251, 146, 60, 0.14), transparent 22%),
     linear-gradient(145deg, #140d09, #1a1326 40%, #461a0f);
+}
+
+.faculty-platform-page {
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 22%),
+    linear-gradient(145deg, #07131f, #11243c 44%, #0f4c5c);
 }
 
 .platform-sidebar {
@@ -2274,6 +2285,75 @@ a {
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.course-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.course-form-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.selection-card {
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.selection-card strong {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.selection-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.55rem;
+  color: inherit;
+}
+
+.table-shell {
+  overflow-x: auto;
+}
+
+.course-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.course-table th,
+.course-table td {
+  padding: 0.9rem 0.8rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  text-align: left;
+}
+
+.history-card textarea {
+  width: 100%;
+  margin-top: 0.85rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.86);
+  color: #f8fafc;
+  resize: vertical;
+}
+
 :root {
   --vscode-bg: #1e1e1e;
   --vscode-sidebar: #181818;
@@ -2831,6 +2911,11 @@ body,
 
   .platform-stats-grid,
   .auth-side-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .course-grid,
+  .selection-grid {
     grid-template-columns: 1fr;
   }
 

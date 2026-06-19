@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveStudentSession } from "../../utils/session";
+import { apiRequest } from "../../utils/api";
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const initialForm = {
   fullName: "",
   email: "",
-  password: ""
+  password: "",
+  rollNumber: "",
+  branch: "CSE",
+  semester: 1,
+  section: "A",
+  batch: "2024-2028"
 };
 const studentHighlights = [
   "Structured problem statements",
@@ -41,8 +46,7 @@ export default function StudentLogin() {
       message: ""
     });
 
-    const endpoint = mode === "register" ? "/users/student-register" : "/users/student-login";
-    const payload =
+    const authPayload =
       mode === "register"
         ? form
         : {
@@ -51,18 +55,33 @@ export default function StudentLogin() {
           };
 
     try {
-      const response = await fetch(`${apiBaseUrl}${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
+      let data;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to authenticate student.");
+      try {
+        data = await apiRequest(
+          mode === "register" ? "/auth/register/student" : "/auth/login/student",
+          {
+            method: "POST",
+            body: JSON.stringify(authPayload)
+          }
+        );
+      } catch (error) {
+        data = await apiRequest(
+          mode === "register" ? "/users/student-register" : "/users/student-login",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              fullName: form.fullName,
+              email: form.email,
+              password: form.password,
+              rollNumber: form.rollNumber,
+              branch: form.branch,
+              semester: form.semester,
+              section: form.section,
+              batch: form.batch
+            })
+          }
+        );
       }
 
       const session = {
@@ -175,6 +194,48 @@ export default function StudentLogin() {
                   onChange={handleChange}
                   required
                 />
+
+                <label className="form-field" htmlFor="rollNumber">
+                  Roll number
+                </label>
+                <input
+                  id="rollNumber"
+                  name="rollNumber"
+                  type="text"
+                  placeholder="Enter your roll number"
+                  value={form.rollNumber}
+                  onChange={handleChange}
+                  required
+                />
+
+                <label className="form-field" htmlFor="branch">
+                  Branch
+                </label>
+                <input id="branch" name="branch" type="text" value={form.branch} onChange={handleChange} required />
+
+                <label className="form-field" htmlFor="semester">
+                  Semester
+                </label>
+                <input
+                  id="semester"
+                  name="semester"
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={form.semester}
+                  onChange={handleChange}
+                  required
+                />
+
+                <label className="form-field" htmlFor="section">
+                  Section
+                </label>
+                <input id="section" name="section" type="text" value={form.section} onChange={handleChange} required />
+
+                <label className="form-field" htmlFor="batch">
+                  Batch
+                </label>
+                <input id="batch" name="batch" type="text" value={form.batch} onChange={handleChange} required />
               </>
             ) : null}
 

@@ -123,7 +123,13 @@ export default function AccountSection({ role, session, saveSession }) {
   return (
     <PlatformSection
       label="Account"
-      title={role === "admin" ? "Admin details and security" : "Student details and security"}
+      title={
+        role === "admin"
+          ? "Admin details and security"
+          : role === "faculty"
+            ? "Faculty details and security"
+            : "Student details and security"
+      }
       actions={
         <>
           <button

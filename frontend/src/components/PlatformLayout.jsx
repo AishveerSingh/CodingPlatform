@@ -3,11 +3,18 @@ import { Link, useLocation } from "react-router-dom";
 const navItemsByRole = {
   student: [
     { to: "/student/dashboard", label: "Overview" },
+    { to: "/student/courses", label: "Courses" },
     { to: "/student/problems", label: "Problem Set" },
     { to: "/student/account", label: "Account" }
   ],
+  faculty: [
+    { to: "/faculty/dashboard", label: "Overview" },
+    { to: "/faculty/courses", label: "Assigned Courses" },
+    { to: "/faculty/account", label: "Account" }
+  ],
   admin: [
     { to: "/admin/dashboard", label: "Overview" },
+    { to: "/admin/courses", label: "Courses" },
     { to: "/admin/problems", label: "Problem Bank" },
     { to: "/admin/problems/new", label: "Create Problem" },
     { to: "/admin/students", label: "Students" },
@@ -36,13 +43,23 @@ export function PlatformLayout({
     <main className={`platform-page ${role}-platform-page`}>
       <aside className="platform-sidebar">
         <Link className="platform-brand" to="/">
-          <span className="platform-brand-mark">{role === "admin" ? "CP Admin" : "CP Student"}</span>
+          <span className="platform-brand-mark">
+            {role === "admin" ? "CP Admin" : role === "faculty" ? "CP Faculty" : "CP Student"}
+          </span>
           <strong>Coding Platform</strong>
         </Link>
 
         <div className="platform-sidebar-copy">
-          <p className="platform-sidebar-label">{role === "admin" ? "Operations" : "Practice"}</p>
-          <h2>{role === "admin" ? "Manage the platform like a control room." : "Train like a modern coding workspace."}</h2>
+          <p className="platform-sidebar-label">
+            {role === "admin" ? "Operations" : role === "faculty" ? "Teaching" : "Practice"}
+          </p>
+          <h2>
+            {role === "admin"
+              ? "Manage the platform like a control room."
+              : role === "faculty"
+                ? "Teach with tightly scoped course access."
+                : "Train like a modern coding workspace."}
+          </h2>
           <p>{sidebarNote}</p>
         </div>
 

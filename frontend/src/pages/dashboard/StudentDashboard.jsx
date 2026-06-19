@@ -111,9 +111,14 @@ export default function StudentDashboard() {
       }
       meta="Practice Mode"
       actions={
-        <Link className="auth-button student-button panel-action-button" to="/student/problems">
-          Solve problems
-        </Link>
+        <>
+          <Link className="auth-button student-button panel-action-button" to="/student/courses">
+            Open courses
+          </Link>
+          <Link className="auth-button ghost-button panel-action-button" to="/student/problems">
+            Solve problems
+          </Link>
+        </>
       }
       sidebarNote="Use this area like a coding platform hub: open the problem set, keep an eye on your success rate, and return often to build momentum."
     >
@@ -136,6 +141,21 @@ export default function StudentDashboard() {
           }
         ]}
       />
+
+      <PlatformSection
+        label="Assigned Courses"
+        title="Open your semester and batch courses"
+        actions={
+          <Link className="auth-button student-button panel-action-button" to="/student/courses">
+            View courses
+          </Link>
+        }
+      >
+        <p className="dashboard-copy">
+          Your course list is filtered by branch, semester, section, and batch, and the backend
+          checks the same rules on every course request.
+        </p>
+      </PlatformSection>
 
       <PlatformSection
         label="Problem Set"

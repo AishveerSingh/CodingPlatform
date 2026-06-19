@@ -1,5 +1,6 @@
 const STUDENT_STORAGE_KEY = "coding_platform_student";
 const ADMIN_STORAGE_KEY = "coding_platform_admin";
+const FACULTY_STORAGE_KEY = "coding_platform_faculty";
 
 function readSession(storageKey) {
   const stored = localStorage.getItem(storageKey);
@@ -36,6 +37,18 @@ export function getAdminSession() {
 
 export function clearAdminSession() {
   clearSession(ADMIN_STORAGE_KEY);
+}
+
+export function saveFacultySession(session) {
+  writeSession(FACULTY_STORAGE_KEY, session);
+}
+
+export function getFacultySession() {
+  return readSession(FACULTY_STORAGE_KEY);
+}
+
+export function clearFacultySession() {
+  clearSession(FACULTY_STORAGE_KEY);
 }
 
 export function getAuthHeaders(token) {

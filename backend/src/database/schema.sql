@@ -5,12 +5,42 @@ CREATE TABLE IF NOT EXISTS users (
   full_name VARCHAR(120) NOT NULL,
   email VARCHAR(180) NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  role VARCHAR(30) NOT NULL CHECK (role IN ('student', 'instructor', 'admin')),
+  role VARCHAR(30) NOT NULL CHECK (role IN ('student', 'faculty', 'admin')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS password_hash TEXT;
+
+UPDATE users
+SET role = 'faculty'
+WHERE role = 'instructor';
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users
+ADD CONSTRAINT users_role_check CHECK (role IN ('student', 'faculty', 'admin'));
+
+CREATE TABLE IF NOT EXISTS student_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  roll_number VARCHAR(80) NOT NULL UNIQUE,
+  branch VARCHAR(30) NOT NULL,
+  semester INTEGER NOT NULL CHECK (semester BETWEEN 1 AND 12),
+  section VARCHAR(10) NOT NULL,
+  batch VARCHAR(30) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS faculty_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  employee_id VARCHAR(80) NOT NULL UNIQUE,
+  department VARCHAR(50) NOT NULL,
+  designation VARCHAR(120) NOT NULL DEFAULT 'Faculty',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,6 +67,95 @@ ADD COLUMN IF NOT EXISTS input_format TEXT,
 ADD COLUMN IF NOT EXISTS output_format TEXT,
 ADD COLUMN IF NOT EXISTS constraints_text TEXT,
 ADD COLUMN IF NOT EXISTS examples_text TEXT;
+
+ALTER TABLE courses
+ADD COLUMN IF NOT EXISTS code VARCHAR(50),
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_code_unique ON courses(code) WHERE code IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS course_audiences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  branch VARCHAR(30) NOT NULL,
+  semester INTEGER NOT NULL CHECK (semester BETWEEN 1 AND 12),
+  section VARCHAR(10) NOT NULL,
+  batch VARCHAR(30) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (course_id, branch, semester, section, batch)
+);
+
+CREATE TABLE IF NOT EXISTS course_faculty (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  faculty_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (course_id, faculty_id)
+);
+
+CREATE TABLE IF NOT EXISTS course_enrollments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'enrolled' CHECK (status IN ('enrolled', 'archived')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (course_id, student_id)
+);
+
+CREATE TABLE IF NOT EXISTS course_materials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  title VARCHAR(180) NOT NULL,
+  description TEXT,
+  material_type VARCHAR(20) NOT NULL DEFAULT 'notes'
+    CHECK (material_type IN ('notes', 'slides', 'video', 'link', 'document')),
+  url TEXT NOT NULL,
+  uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS course_coding_problems (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  title VARCHAR(180) NOT NULL,
+  statement TEXT NOT NULL,
+  difficulty VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS course_assignments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  title VARCHAR(180) NOT NULL,
+  description TEXT,
+  assignment_type VARCHAR(20) NOT NULL DEFAULT 'coding' CHECK (assignment_type IN ('coding', 'theory')),
+  due_date TIMESTAMPTZ,
+  max_score INTEGER NOT NULL DEFAULT 100 CHECK (max_score > 0),
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS course_assignment_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  assignment_id UUID NOT NULL REFERENCES course_assignments(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source_code TEXT NOT NULL DEFAULT '',
+  answer_text TEXT NOT NULL DEFAULT '',
+  attachment_url TEXT NOT NULL DEFAULT '',
+  grade INTEGER CHECK (grade BETWEEN 0 AND 100),
+  feedback TEXT NOT NULL DEFAULT '',
+  status VARCHAR(20) NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'graded')),
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (assignment_id, student_id)
+);
 
 CREATE TABLE IF NOT EXISTS submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -119,3 +238,17 @@ CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DE
 CREATE INDEX IF NOT EXISTS idx_student_progress_student_id ON student_progress(student_id);
 CREATE INDEX IF NOT EXISTS idx_student_progress_problem_id ON student_progress(problem_id);
 CREATE INDEX IF NOT EXISTS idx_student_progress_latest_status ON student_progress(latest_status);
+
+CREATE INDEX IF NOT EXISTS idx_student_profiles_branch_semester
+  ON student_profiles(branch, semester, section, batch);
+CREATE INDEX IF NOT EXISTS idx_faculty_profiles_department ON faculty_profiles(department);
+CREATE INDEX IF NOT EXISTS idx_course_audiences_course_id ON course_audiences(course_id);
+CREATE INDEX IF NOT EXISTS idx_course_audiences_match
+  ON course_audiences(branch, semester, section, batch);
+CREATE INDEX IF NOT EXISTS idx_course_faculty_faculty_id ON course_faculty(faculty_id);
+CREATE INDEX IF NOT EXISTS idx_course_enrollments_student_id ON course_enrollments(student_id);
+CREATE INDEX IF NOT EXISTS idx_course_materials_course_id ON course_materials(course_id);
+CREATE INDEX IF NOT EXISTS idx_course_coding_problems_course_id ON course_coding_problems(course_id);
+CREATE INDEX IF NOT EXISTS idx_course_assignments_course_id ON course_assignments(course_id);
+CREATE INDEX IF NOT EXISTS idx_course_assignment_submissions_assignment_id
+  ON course_assignment_submissions(assignment_id);

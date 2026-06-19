@@ -27,9 +27,9 @@ export default function HomePage() {
           <p className="landing-kicker">Coding Platform</p>
           <h1>Train, review, and manage coding workflows in a workspace inspired by modern challenge platforms.</h1>
           <p className="landing-copy">
-            Choose whether you are a student or admin, then move into a professional practice
-            environment with structured problem statements, submission verdicts, dashboards, and
-            admin review tools.
+            Choose whether you are a student, faculty member, or admin, then move into a role-based
+            workflow with coding practice, batch-wise course access, teaching tools, and protected
+            administrative controls.
           </p>
 
           <div className="landing-stat-strip">
@@ -39,7 +39,7 @@ export default function HomePage() {
             </article>
             <article>
               <span>Roles</span>
-              <strong>Student and admin paths</strong>
+              <strong>Student, faculty, and admin paths</strong>
             </article>
             <article>
               <span>Supported</span>
@@ -47,17 +47,23 @@ export default function HomePage() {
             </article>
           </div>
 
-          <div className="landing-actions">
+          <div className="landing-actions landing-actions-three">
             <Link className="landing-role-card student-role-card" to="/student/login">
               <span className="landing-role-label">Student</span>
               <strong>Open student login</strong>
               <p>Practice questions, open problem details, and build regular coding habits.</p>
             </Link>
 
+            <Link className="landing-role-card student-role-card" to="/faculty/login">
+              <span className="landing-role-label">Faculty</span>
+              <strong>Open faculty login</strong>
+              <p>Manage assigned courses, publish study material, and review enrolled students.</p>
+            </Link>
+
             <Link className="landing-role-card admin-role-card" to="/admin/login">
               <span className="landing-role-label">Admin</span>
               <strong>Open admin login</strong>
-              <p>Add coding questions, review the problem bank, and manage platform flow.</p>
+              <p>Create and assign courses, manage faculty mapping, and control platform flow.</p>
             </Link>
           </div>
         </div>
