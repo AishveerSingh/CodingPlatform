@@ -12,7 +12,7 @@ dotenv.config({
 function parseClientUrls(value) {
   return (value || "http://localhost:5173")
     .split(",")
-    .map((entry) => entry.trim())
+    .map((entry) => entry.trim().replace(/\/$/, ""))
     .filter(Boolean);
 }
 

@@ -18,7 +18,12 @@ app.use(
         return;
       }
 
-      if (allowedOrigins.has(origin)) {
+      // Allow if wildcard * is set, origin is explicitly allowed, or if it is a Vercel deployment URL
+      if (
+        allowedOrigins.has("*") ||
+        allowedOrigins.has(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
         callback(null, true);
         return;
       }

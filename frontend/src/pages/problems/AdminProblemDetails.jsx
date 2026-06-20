@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 import { getAdminSession, getAuthHeaders } from "../../utils/session";
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiBaseUrl = import.meta.env.VITE_API_URL || "https://codingplatform-qf38.onrender.com/api";
 const blankTestCase = {
   input_data: "",
   expected_output: ""

@@ -4,7 +4,7 @@ import AccountSection from "../../components/AccountSection";
 import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 import { getAdminSession, getAuthHeaders, saveAdminSession } from "../../utils/session";
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiBaseUrl = import.meta.env.VITE_API_URL || "https://codingplatform-qf38.onrender.com/api";
 
 export default function AdminDashboard() {
   const location = useLocation();
