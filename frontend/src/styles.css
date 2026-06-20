@@ -1169,7 +1169,9 @@ a {
 
 .custom-select {
   position: relative;
-  flex: 0 1 220px;
+  flex: 1 1 auto;
+  min-width: 160px;
+  max-width: 220px;
 }
 
 .custom-select.filter-select {
@@ -1180,7 +1182,7 @@ a {
 }
 
 .custom-select[open] {
-  z-index: 20;
+  z-index: 1000;
 }
 
 .custom-select-trigger {
@@ -1227,9 +1229,11 @@ a {
   top: calc(100% + 0.45rem);
   left: 0;
   right: 0;
+  z-index: 1000;
   display: grid;
   gap: 0.35rem;
   max-height: 240px;
+  max-width: 280px;
   padding: 0.45rem;
   overflow-y: auto;
   border: 1px solid rgba(148, 163, 184, 0.24);
@@ -2601,6 +2605,7 @@ a {
 .course-form-grid {
   display: grid;
   gap: 0.9rem;
+  overflow: visible;
 }
 
 .course-test-case-grid {
@@ -2626,12 +2631,14 @@ a {
 
 .audience-selection-grid {
   align-items: start;
+  overflow: visible;
 }
 
 .selection-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  overflow: visible;
 }
 
 .selection-card {
@@ -2651,13 +2658,16 @@ a {
   gap: 0.75rem;
   align-items: center;
   margin-bottom: 0.85rem;
+  flex-wrap: wrap;
 }
 
 .compact-button {
   margin-top: 0;
-  min-width: 88px;
-  padding: 0.95rem 1rem;
-  border-radius: 16px;
+  min-width: auto;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .selection-pill-row {
