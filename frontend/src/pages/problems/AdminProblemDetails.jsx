@@ -4,6 +4,10 @@ import { PlatformLayout, PlatformSection, PlatformStats } from "../../components
 import { getAdminSession, getAuthHeaders } from "../../utils/session";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const blankTestCase = {
+  input_data: "",
+  expected_output: ""
+};
 
 function buildForm(problem) {
   return {
@@ -14,10 +18,12 @@ function buildForm(problem) {
     outputFormat: problem.output_format || "",
     constraintsText: problem.constraints_text || "",
     examplesText: problem.examples_text || "",
-    tagsText: (problem.tags || []).join(", "),
-    sampleInput: problem.sample_test_cases?.[0]?.input_data || "",
-    sampleOutput: problem.sample_test_cases?.[0]?.expected_output || ""
+    tagsText: (problem.tags || []).join(", ")
   };
+}
+
+function buildEditableTestCases(testCases) {
+  return testCases?.length ? testCases.map((testCase) => ({ ...testCase })) : [{ ...blankTestCase }];
 }
 
 export default function AdminProblemDetails() {
@@ -45,6 +51,7 @@ export default function AdminProblemDetails() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
+  const [sampleTestCases, setSampleTestCases] = useState([{ ...blankTestCase }]);
   const [hiddenTestCases, setHiddenTestCases] = useState([]);
 
   useEffect(() => {
@@ -66,6 +73,7 @@ export default function AdminProblemDetails() {
         if (isMounted) {
           setProblem(data);
           setForm(buildForm(data));
+          setSampleTestCases(buildEditableTestCases(data.sample_test_cases));
           setHiddenTestCases(data.hidden_test_cases || []);
           setStatus({
             loading: false,
@@ -111,10 +119,13 @@ export default function AdminProblemDetails() {
       .split(",")
       .map((tag) => tag.trim())
       .filter(Boolean);
-    const sampleTestCases =
-      form.sampleInput.trim() && form.sampleOutput.trim()
-        ? [{ input_data: form.sampleInput, expected_output: form.sampleOutput, sort_order: 0 }]
-        : [];
+    const finalSampleCases = sampleTestCases
+      .map((tc, index) => ({
+        input_data: tc.input_data.trim(),
+        expected_output: tc.expected_output.trim(),
+        sort_order: index
+      }))
+      .filter((tc) => tc.input_data || tc.expected_output);
     const finalHiddenCases = hiddenTestCases
       .map((tc, index) => ({
         input_data: tc.input_data.trim(),
@@ -139,7 +150,7 @@ export default function AdminProblemDetails() {
           constraintsText: form.constraintsText,
           examplesText: form.examplesText,
           tags,
-          sampleTestCases,
+          sampleTestCases: finalSampleCases,
           hiddenTestCases: finalHiddenCases
         })
       });
@@ -152,6 +163,7 @@ export default function AdminProblemDetails() {
 
       setProblem(data.problem);
       setForm(buildForm(data.problem));
+      setSampleTestCases(buildEditableTestCases(data.problem.sample_test_cases));
       setHiddenTestCases(data.problem.hidden_test_cases || []);
       setIsEditing(false);
       setActionMessage(data.message);
@@ -408,32 +420,81 @@ export default function AdminProblemDetails() {
                   onChange={handleChange}
                 />
 
-                <div className="detail-grid detail-grid-tight">
-                  <div>
-                    <label className="form-field" htmlFor="sampleInput">
-                      Sample input
-                    </label>
-                    <textarea
-                      id="sampleInput"
-                      name="sampleInput"
-                      rows="5"
-                      value={form.sampleInput}
-                      onChange={handleChange}
-                    />
+                <div style={{ margin: "2rem 0 1rem", borderTop: "1px solid rgba(148, 163, 184, 0.12)", paddingTop: "1rem" }} />
+                <h3>Sample Test Cases</h3>
+                <p className="detail-copy" style={{ marginTop: 0 }}>
+                  These public examples are visible to students in the problem statement.
+                </p>
+
+                {sampleTestCases.map((tc, index) => (
+                  <div key={index} className="detail-grid detail-grid-tight" style={{ border: "1px solid rgba(148, 163, 184, 0.16)", borderRadius: "16px", padding: "1.2rem", marginBottom: "1rem", position: "relative" }}>
+                    <div style={{ position: "absolute", top: "0.8rem", right: "0.8rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span className="platform-sidebar-label">Sample #{index + 1}</span>
+                      {sampleTestCases.length > 1 ? (
+                        <button
+                          type="button"
+                          className="auth-button danger-button"
+                          style={{ margin: 0, padding: "0.25rem 0.6rem", fontSize: "0.75rem", borderRadius: "8px" }}
+                          onClick={() => {
+                            setSampleTestCases(sampleTestCases.filter((_, i) => i !== index));
+                          }}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div style={{ marginTop: "1rem" }}>
+                      <label className="form-field" htmlFor={`sample-input-${index}`}>
+                        Sample input
+                      </label>
+                      <textarea
+                        id={`sample-input-${index}`}
+                        rows="5"
+                        value={tc.input_data}
+                        onChange={(event) => {
+                          const nextCases = [...sampleTestCases];
+                          nextCases[index].input_data = event.target.value;
+                          setSampleTestCases(nextCases);
+                        }}
+                      />
+                    </div>
+                    <div style={{ marginTop: "1rem" }}>
+                      <label className="form-field" htmlFor={`sample-output-${index}`}>
+                        Sample output
+                      </label>
+                      <textarea
+                        id={`sample-output-${index}`}
+                        rows="5"
+                        value={tc.expected_output}
+                        onChange={(event) => {
+                          const nextCases = [...sampleTestCases];
+                          nextCases[index].expected_output = event.target.value;
+                          setSampleTestCases(nextCases);
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="form-field" htmlFor="sampleOutput">
-                      Sample output
-                    </label>
-                    <textarea
-                      id="sampleOutput"
-                      name="sampleOutput"
-                      rows="5"
-                      value={form.sampleOutput}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
+                ))}
+
+                <button
+                  type="button"
+                  className="auth-button ghost-button"
+                  style={{
+                    marginTop: "0.5rem",
+                    background: "transparent",
+                    border: "1px solid rgba(148, 163, 184, 0.24)",
+                    color: "#f8fafc",
+                    padding: "0.6rem 1.2rem",
+                    fontSize: "0.9rem",
+                    borderRadius: "999px"
+                  }}
+                  onClick={() => {
+                    setSampleTestCases([...sampleTestCases, { ...blankTestCase }]);
+                  }}
+                >
+                  + Add Sample Test Case
+                </button>
 
                 <div style={{ margin: "2rem 0 1rem", borderTop: "1px solid rgba(148, 163, 184, 0.12)", paddingTop: "1rem" }} />
                 <h3>Hidden Test Cases (Admin Only)</h3>
@@ -528,6 +589,7 @@ export default function AdminProblemDetails() {
                     onClick={() => {
                       setIsEditing(false);
                       setForm(buildForm(problem));
+                      setSampleTestCases(buildEditableTestCases(problem.sample_test_cases));
                       setHiddenTestCases(problem.hidden_test_cases || []);
                     }}
                   >

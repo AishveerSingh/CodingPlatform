@@ -4,17 +4,12 @@ import { saveFacultySession } from "../../utils/session";
 import { apiRequest } from "../../utils/api";
 
 const initialForm = {
-  fullName: "",
   email: "",
-  password: "",
-  employeeId: "",
-  department: "",
-  designation: "Faculty"
+  password: ""
 };
 
 export default function FacultyLogin() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState("login");
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState({
     type: "",
@@ -38,41 +33,14 @@ export default function FacultyLogin() {
       message: ""
     });
 
-    const authPayload =
-      mode === "register"
-        ? form
-        : {
-            email: form.email,
-            password: form.password
-          };
-
     try {
-      let data;
-
-      try {
-        data = await apiRequest(
-          mode === "register" ? "/auth/register/faculty" : "/auth/login/faculty",
-          {
-            method: "POST",
-            body: JSON.stringify(authPayload)
-          }
-        );
-      } catch (_error) {
-        data = await apiRequest(
-          mode === "register" ? "/users/faculty-register" : "/users/faculty-login",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              fullName: form.fullName,
-              email: form.email,
-              password: form.password,
-              employeeId: form.employeeId,
-              department: form.department,
-              designation: form.designation
-            })
-          }
-        );
-      }
+      const data = await apiRequest("/auth/login/faculty", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password
+        })
+      });
 
       const session = {
         token: data.token,
@@ -120,75 +88,14 @@ export default function FacultyLogin() {
       <section className="auth-panel student-panel auth-entry-panel">
         <div className="auth-form-panel-header">
           <p className="auth-kicker">Faculty Access</p>
-          <h1>{mode === "register" ? "Register" : "Log in"}</h1>
+          <h1>Log in</h1>
           <p className="auth-form-panel-copy">
-            {mode === "register"
-              ? "Create a faculty account and connect it to your department."
-              : "Continue to your assigned course dashboard."}
+            Continue to your assigned course dashboard using the credentials assigned by admin.
           </p>
-        </div>
-
-        <div className="auth-switcher" role="tablist" aria-label="Faculty auth mode">
-          <button
-            className={`auth-switcher-button ${mode === "login" ? "active student-accent" : ""}`}
-            type="button"
-            onClick={() => setMode("login")}
-          >
-            Log in
-          </button>
-          <button
-            className={`auth-switcher-button ${mode === "register" ? "active student-accent" : ""}`}
-            type="button"
-            onClick={() => setMode("register")}
-          >
-            Register
-          </button>
         </div>
 
         <div className="auth-form-card">
           <form className="auth-form auth-form-portal" onSubmit={handleSubmit}>
-            {mode === "register" ? (
-              <>
-                <label className="form-field" htmlFor="faculty-fullName">
-                  Full name
-                </label>
-                <input id="faculty-fullName" name="fullName" value={form.fullName} onChange={handleChange} required />
-
-                <label className="form-field" htmlFor="faculty-employeeId">
-                  Employee ID
-                </label>
-                <input
-                  id="faculty-employeeId"
-                  name="employeeId"
-                  value={form.employeeId}
-                  onChange={handleChange}
-                  required
-                />
-
-                <label className="form-field" htmlFor="faculty-department">
-                  Department
-                </label>
-                <input
-                  id="faculty-department"
-                  name="department"
-                  value={form.department}
-                  onChange={handleChange}
-                  placeholder="CSE"
-                  required
-                />
-
-                <label className="form-field" htmlFor="faculty-designation">
-                  Designation
-                </label>
-                <input
-                  id="faculty-designation"
-                  name="designation"
-                  value={form.designation}
-                  onChange={handleChange}
-                />
-              </>
-            ) : null}
-
             <label className="form-field" htmlFor="faculty-email">
               Email
             </label>
@@ -208,11 +115,16 @@ export default function FacultyLogin() {
             />
 
             <button className="auth-button student-button auth-submit-wide" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : mode === "register" ? "Create faculty account" : "Enter faculty dashboard"}
+              {isSubmitting ? "Signing in..." : "Enter faculty dashboard"}
             </button>
           </form>
 
           {status.message ? <p className={`form-status ${status.type}`}>{status.message}</p> : null}
+
+          <div className="auth-form-footer-note">
+            <span className="auth-form-footer-dot" />
+            <p>Faculty accounts are created by admin with a college email and password</p>
+          </div>
         </div>
       </section>
     </main>

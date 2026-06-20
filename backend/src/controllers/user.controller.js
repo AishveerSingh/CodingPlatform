@@ -1,4 +1,5 @@
 import { pool } from "../config/db.js";
+import { env } from "../config/env.js";
 import { hashPassword, signAuthToken, verifyPassword } from "../utils/auth.js";
 
 function sanitizeUser(row) {
@@ -72,7 +73,67 @@ async function fetchUserSummary(userId) {
   return result.rows[0] ? sanitizeUser(result.rows[0]) : null;
 }
 
-async function registerUser(req, res, next, role) {
+async function hasFacultyStudentAccess(facultyId, studentId) {
+  const result = await pool.query(
+    `
+      SELECT 1
+      FROM course_faculty cf
+      JOIN course_enrollments ce
+        ON ce.course_id = cf.course_id
+       AND ce.status = 'enrolled'
+      WHERE cf.faculty_id = $1
+        AND ce.student_id = $2
+      LIMIT 1
+    `,
+    [facultyId, studentId]
+  );
+
+  return result.rows.length > 0;
+}
+
+function normalizeIdentifier(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function validateCollegeEmail({ email, role, rollNumber, employeeId }) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const domainSuffix = `@${env.collegeEmailDomain}`;
+
+  if (!normalizedEmail.endsWith(domainSuffix)) {
+    return `Email must use the college domain ${env.collegeEmailDomain}.`;
+  }
+
+  const [localPart] = normalizedEmail.split("@");
+  if (!/^[a-z0-9._-]+$/.test(localPart) || !localPart.includes("_")) {
+    return "Email must follow the college format like name_identifier@college.com.";
+  }
+
+  if (role === "student") {
+    const normalizedRollNumber = normalizeIdentifier(rollNumber);
+    if (normalizedRollNumber && !normalizeIdentifier(localPart).includes(normalizedRollNumber)) {
+      return "Student email must include the student's roll number, like name_rollno@college.com.";
+    }
+  }
+
+  if (role === "faculty") {
+    const normalizedEmployeeId = normalizeIdentifier(employeeId);
+    if (normalizedEmployeeId && !normalizeIdentifier(localPart).includes(normalizedEmployeeId)) {
+      return "Faculty email must include the faculty employee ID, like name_employeeid@college.com.";
+    }
+  }
+
+  return "";
+}
+
+async function registerUser(req, res, next, role, options = {}) {
+  const {
+    allowPublicRegistration = role === "admin",
+    issueToken = true,
+    successMessage = `${role === "admin" ? "Admin" : role === "faculty" ? "Faculty" : "Student"} account created successfully.`
+  } = options;
   const {
     fullName,
     email,
@@ -114,9 +175,28 @@ async function registerUser(req, res, next, role) {
     });
   }
 
+  if (!allowPublicRegistration && req.auth?.role !== "admin") {
+    return res.status(403).json({
+      message: `Only admins can create ${role} accounts.`
+    });
+  }
+
   try {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedName = fullName.trim();
+    const emailValidationMessage = validateCollegeEmail({
+      email: normalizedEmail,
+      role,
+      rollNumber,
+      employeeId
+    });
+
+    if (emailValidationMessage) {
+      return res.status(400).json({
+        message: emailValidationMessage
+      });
+    }
+
     const passwordHash = await hashPassword(password.trim());
 
     const existingUser = await pool.query(
@@ -149,13 +229,16 @@ async function registerUser(req, res, next, role) {
         );
 
         const user = await fetchUserSummary(upgradedUser.rows[0].id);
-        const token = signAuthToken(upgradedUser.rows[0]);
-
-        return res.status(201).json({
+        const responseBody = {
           message: `${role === "admin" ? "Admin" : role === "faculty" ? "Faculty" : "Student"} account secured successfully.`,
-          token,
           user
-        });
+        };
+
+        if (issueToken) {
+          responseBody.token = signAuthToken(upgradedUser.rows[0]);
+        }
+
+        return res.status(201).json(responseBody);
       }
 
       return res.status(409).json({
@@ -208,13 +291,16 @@ async function registerUser(req, res, next, role) {
 
       await client.query("COMMIT");
       const createdUser = await fetchUserSummary(user.id);
-      const token = signAuthToken(user);
-
-      res.status(201).json({
-        message: `${role === "admin" ? "Admin" : role === "faculty" ? "Faculty" : "Student"} account created successfully.`,
-        token,
+      const responseBody = {
+        message: successMessage,
         user: createdUser
-      });
+      };
+
+      if (issueToken) {
+        responseBody.token = signAuthToken(user);
+      }
+
+      res.status(201).json(responseBody);
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -508,7 +594,113 @@ export async function changeCurrentUserPassword(req, res, next) {
 }
 
 export function registerStudent(req, res, next) {
-  return registerUser(req, res, next, "student");
+  return registerUser(req, res, next, "student", {
+    allowPublicRegistration: false,
+    issueToken: false,
+    successMessage: "Student account created successfully."
+  });
+}
+
+export async function getAccessibleStudents(req, res, next) {
+  const search = req.query.search?.trim() ?? "";
+
+  try {
+    const values = [];
+    const filters = ["u.role = 'student'"];
+
+    if (req.currentUser.role === "faculty") {
+      values.push(req.currentUser.id);
+      filters.push(`EXISTS (
+        SELECT 1
+        FROM course_faculty cf
+        JOIN course_enrollments ce
+          ON ce.course_id = cf.course_id
+         AND ce.status = 'enrolled'
+        WHERE cf.faculty_id = $${values.length}
+          AND ce.student_id = u.id
+      )`);
+    } else if (req.currentUser.role !== "admin") {
+      return res.status(403).json({
+        message: "You do not have permission to view students."
+      });
+    }
+
+    if (search) {
+      values.push(`%${search}%`);
+      filters.push(`(
+        u.full_name ILIKE $${values.length}
+        OR u.email ILIKE $${values.length}
+        OR sp.roll_number ILIKE $${values.length}
+      )`);
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          u.id,
+          u.full_name,
+          u.email,
+          u.role,
+          u.created_at,
+          COUNT(s.id)::int AS submission_count,
+          COUNT(*) FILTER (WHERE s.status = 'accepted')::int AS accepted_count,
+          sp.roll_number,
+          sp.branch,
+          sp.semester,
+          sp.section,
+          sp.batch
+        FROM users u
+        LEFT JOIN student_profiles sp ON sp.user_id = u.id
+        LEFT JOIN submissions s ON s.student_id = u.id
+        WHERE ${filters.join(" AND ")}
+        GROUP BY
+          u.id,
+          sp.roll_number,
+          sp.branch,
+          sp.semester,
+          sp.section,
+          sp.batch
+        ORDER BY u.created_at DESC
+      `,
+      values
+    );
+
+    res.json(result.rows.map(sanitizeUser));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAccessibleStudentById(req, res, next) {
+  const { studentId } = req.params;
+
+  try {
+    if (req.currentUser.role === "faculty") {
+      const allowed = await hasFacultyStudentAccess(req.currentUser.id, studentId);
+
+      if (!allowed) {
+        return res.status(403).json({
+          message: "You do not have permission to access this student."
+        });
+      }
+    } else if (req.currentUser.role !== "admin") {
+      return res.status(403).json({
+        message: "You do not have permission to access this student."
+      });
+    }
+
+    const user = await fetchUserSummary(studentId);
+
+    if (!user || user.role !== "student") {
+      return res.status(404).json({
+        message: "Student not found."
+      });
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
 }
 
 export function loginStudent(req, res, next) {
@@ -516,7 +708,10 @@ export function loginStudent(req, res, next) {
 }
 
 export function registerAdmin(req, res, next) {
-  return registerUser(req, res, next, "admin");
+  return registerUser(req, res, next, "admin", {
+    allowPublicRegistration: true,
+    issueToken: true
+  });
 }
 
 export function loginAdmin(req, res, next) {
@@ -597,7 +792,11 @@ export async function resetStudentPassword(req, res, next) {
 }
 
 export function registerFaculty(req, res, next) {
-  return registerUser(req, res, next, "faculty");
+  return registerUser(req, res, next, "faculty", {
+    allowPublicRegistration: false,
+    issueToken: false,
+    successMessage: "Faculty account created successfully."
+  });
 }
 
 export function loginFaculty(req, res, next) {

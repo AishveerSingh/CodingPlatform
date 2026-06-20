@@ -2,8 +2,19 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 import { clearAdminSession, getAdminSession, getAuthHeaders } from "../../utils/session";
+import { branchOptions, buildSemesterOptions, sectionOptions } from "../../types/course";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const initialStudentForm = {
+  fullName: "",
+  email: "",
+  password: "",
+  rollNumber: "",
+  branch: branchOptions[0],
+  semester: buildSemesterOptions()[0],
+  section: sectionOptions[0],
+  batch: "2024-2028"
+};
 
 export default function AdminStudentList() {
   const navigate = useNavigate();
@@ -12,15 +23,55 @@ export default function AdminStudentList() {
   const [filters, setFilters] = useState({
     search: ""
   });
+  const [studentForm, setStudentForm] = useState(initialStudentForm);
   const [status, setStatus] = useState({
     loading: true,
     error: ""
   });
+  const [createStatus, setCreateStatus] = useState({ message: "", error: "" });
+  const [isCreating, setIsCreating] = useState(false);
 
   const [activeResetStudentId, setActiveResetStudentId] = useState(null);
   const [newPassword, setNewPassword] = useState("");
   const [resetStatus, setResetStatus] = useState({ message: "", error: "" });
   const [isResetting, setIsResetting] = useState(false);
+
+  async function handleCreateStudent(event) {
+    event.preventDefault();
+    setIsCreating(true);
+    setCreateStatus({ message: "", error: "" });
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/users/student-register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(session?.token)
+        },
+        body: JSON.stringify(studentForm)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to create student account.");
+      }
+
+      setCreateStatus({
+        message: data.message || "Student account created successfully.",
+        error: ""
+      });
+      setStudentForm(initialStudentForm);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      navigate(0);
+    } catch (error) {
+      setCreateStatus({
+        message: "",
+        error: error.message
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   async function handleResetPassword(event, studentId) {
     event.preventDefault();
@@ -182,6 +233,77 @@ export default function AdminStudentList() {
       />
 
       <PlatformSection label="Search" title="Find a student quickly">
+        <form className="auth-form course-form-grid" onSubmit={handleCreateStudent} style={{ marginBottom: "1.5rem" }}>
+          <strong>Create student account</strong>
+          <input
+            placeholder="Full name"
+            value={studentForm.fullName}
+            onChange={(event) => setStudentForm((current) => ({ ...current, fullName: event.target.value }))}
+            required
+          />
+          <input
+            placeholder="College email (name_rollno@college.com)"
+            value={studentForm.email}
+            onChange={(event) => setStudentForm((current) => ({ ...current, email: event.target.value }))}
+            required
+          />
+          <input
+            type="password"
+            minLength={8}
+            placeholder="Temporary password"
+            value={studentForm.password}
+            onChange={(event) => setStudentForm((current) => ({ ...current, password: event.target.value }))}
+            required
+          />
+          <input
+            placeholder="Roll number"
+            value={studentForm.rollNumber}
+            onChange={(event) => setStudentForm((current) => ({ ...current, rollNumber: event.target.value }))}
+            required
+          />
+          <select
+            value={studentForm.branch}
+            onChange={(event) => setStudentForm((current) => ({ ...current, branch: event.target.value }))}
+          >
+            {branchOptions.map((branch) => (
+              <option key={branch} value={branch}>
+                {branch}
+              </option>
+            ))}
+          </select>
+          <select
+            value={studentForm.semester}
+            onChange={(event) => setStudentForm((current) => ({ ...current, semester: Number(event.target.value) }))}
+          >
+            {buildSemesterOptions().map((semester) => (
+              <option key={semester} value={semester}>
+                Semester {semester}
+              </option>
+            ))}
+          </select>
+          <select
+            value={studentForm.section}
+            onChange={(event) => setStudentForm((current) => ({ ...current, section: event.target.value }))}
+          >
+            {sectionOptions.map((section) => (
+              <option key={section} value={section}>
+                Section {section}
+              </option>
+            ))}
+          </select>
+          <input
+            placeholder="Batch"
+            value={studentForm.batch}
+            onChange={(event) => setStudentForm((current) => ({ ...current, batch: event.target.value }))}
+            required
+          />
+          <button className="auth-button admin-button" type="submit" disabled={isCreating}>
+            {isCreating ? "Creating..." : "Create student login"}
+          </button>
+          {createStatus.message ? <p className="form-status success">{createStatus.message}</p> : null}
+          {createStatus.error ? <p className="form-status error">{createStatus.error}</p> : null}
+        </form>
+
         <div className="filter-bar">
           <input
             aria-label="Search students"

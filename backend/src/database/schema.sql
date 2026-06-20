@@ -122,8 +122,46 @@ CREATE TABLE IF NOT EXISTS course_coding_problems (
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   title VARCHAR(180) NOT NULL,
   statement TEXT NOT NULL,
+  input_format TEXT,
+  output_format TEXT,
+  constraints_text TEXT,
+  examples_text TEXT,
   difficulty VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
   created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE course_coding_problems
+ADD COLUMN IF NOT EXISTS input_format TEXT,
+ADD COLUMN IF NOT EXISTS output_format TEXT,
+ADD COLUMN IF NOT EXISTS constraints_text TEXT,
+ADD COLUMN IF NOT EXISTS examples_text TEXT;
+
+CREATE TABLE IF NOT EXISTS course_problem_test_cases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_problem_id UUID NOT NULL REFERENCES course_coding_problems(id) ON DELETE CASCADE,
+  input_data TEXT NOT NULL,
+  expected_output TEXT NOT NULL,
+  is_sample BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS course_problem_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_problem_id UUID NOT NULL REFERENCES course_coding_problems(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  language VARCHAR(30) NOT NULL CHECK (language IN ('cpp', 'java', 'python', 'javascript')),
+  source_code TEXT NOT NULL,
+  custom_input TEXT NOT NULL DEFAULT '',
+  status VARCHAR(30) NOT NULL CHECK (status IN ('accepted', 'wrong_answer', 'time_limit')),
+  passed_test_cases INTEGER NOT NULL DEFAULT 0,
+  total_test_cases INTEGER NOT NULL DEFAULT 0,
+  execution_time_ms INTEGER,
+  memory_kb INTEGER,
+  compiler_output TEXT,
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -249,6 +287,9 @@ CREATE INDEX IF NOT EXISTS idx_course_faculty_faculty_id ON course_faculty(facul
 CREATE INDEX IF NOT EXISTS idx_course_enrollments_student_id ON course_enrollments(student_id);
 CREATE INDEX IF NOT EXISTS idx_course_materials_course_id ON course_materials(course_id);
 CREATE INDEX IF NOT EXISTS idx_course_coding_problems_course_id ON course_coding_problems(course_id);
+CREATE INDEX IF NOT EXISTS idx_course_problem_test_cases_problem_id ON course_problem_test_cases(course_problem_id);
+CREATE INDEX IF NOT EXISTS idx_course_problem_submissions_problem_id ON course_problem_submissions(course_problem_id);
+CREATE INDEX IF NOT EXISTS idx_course_problem_submissions_student_id ON course_problem_submissions(student_id);
 CREATE INDEX IF NOT EXISTS idx_course_assignments_course_id ON course_assignments(course_id);
 CREATE INDEX IF NOT EXISTS idx_course_assignment_submissions_assignment_id
   ON course_assignment_submissions(assignment_id);

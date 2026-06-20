@@ -8,6 +8,8 @@ import {
   getCourseFilters,
   getCourseStudents,
   listCourses,
+  runCourseCodingProblem,
+  submitCourseCodingProblem,
   updateCourse
 } from "../controllers/course.controller.js";
 import {
@@ -39,5 +41,7 @@ courseRouter.get("/:courseId/assignments", requireCourseAccess, validateStudentC
 courseRouter.post("/:courseId/assignments", requireCourseManagementAccess, createAssignment);
 courseRouter.post("/:courseId/materials", requireCourseManagementAccess, addCourseMaterial);
 courseRouter.post("/:courseId/coding-problems", requireCourseManagementAccess, addCourseCodingProblem);
+courseRouter.post("/:courseId/coding-problems/:problemId/run", requireCourseAccess, validateStudentCourseAccess, runCourseCodingProblem);
+courseRouter.post("/:courseId/coding-problems/:problemId/submit", requireCourseAccess, validateStudentCourseAccess, submitCourseCodingProblem);
 
 export default courseRouter;

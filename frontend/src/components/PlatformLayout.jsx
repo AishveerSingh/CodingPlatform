@@ -10,11 +10,13 @@ const navItemsByRole = {
   faculty: [
     { to: "/faculty/dashboard", label: "Dashboard" },
     { to: "/faculty/courses", label: "Courses" },
+    { to: "/faculty/students", label: "Students" },
     { to: "/faculty/account", label: "Account" }
   ],
   admin: [
     { to: "/admin/dashboard", label: "Dashboard" },
     { to: "/admin/courses", label: "Courses" },
+    { to: "/admin/faculty", label: "Faculty" },
     { to: "/admin/problems", label: "Problem Bank" },
     { to: "/admin/problems/new", label: "Add Problem" },
     { to: "/admin/students", label: "Students" },

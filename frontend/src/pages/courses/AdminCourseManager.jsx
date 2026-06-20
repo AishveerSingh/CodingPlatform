@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { PlatformLayout, PlatformSection } from "../../components/PlatformLayout";
 import { apiRequest } from "../../utils/api";
 import { getAdminSession } from "../../utils/session";
@@ -15,6 +16,18 @@ const initialForm = {
   facultyIds: []
 };
 
+const javaCourseTemplate = {
+  code: "JAVA-101",
+  title: "Programming with Java",
+  description:
+    "A complete Java foundations course covering syntax, object-oriented programming, classes and objects, inheritance, polymorphism, exception handling, collections, file handling, multithreading, and practical problem-solving through coding exercises.",
+  branchTargets: ["CSE"],
+  semesterTargets: [3],
+  sectionTargets: ["A"],
+  batchTargets: ["2024-2028"],
+  facultyIds: []
+};
+
 function withFallbackOptions(filterData) {
   return {
     branches: filterData.branches?.length ? filterData.branches : branchOptions,
@@ -23,6 +36,51 @@ function withFallbackOptions(filterData) {
     semesters: filterData.semesters?.length ? filterData.semesters : buildSemesterOptions(),
     faculty: filterData.faculty ?? []
   };
+}
+
+function PickerDropdown({
+  value,
+  options,
+  onChange,
+  placeholder,
+  formatOption = (option) => option,
+  getOptionValue = (option) => option,
+  className = "filter-select"
+}) {
+  const dropdownRef = useRef(null);
+  const selectedOption = options.find((option) => String(getOptionValue(option)) === String(value));
+
+  function handleSelect(option) {
+    onChange(getOptionValue(option));
+    dropdownRef.current?.removeAttribute("open");
+  }
+
+  return (
+    <details className={`custom-select ${className}`} ref={dropdownRef}>
+      <summary className="custom-select-trigger">{selectedOption ? formatOption(selectedOption) : placeholder}</summary>
+      <div className="custom-select-menu">
+        {options.length > 0 ? (
+          options.map((option) => {
+            const optionValue = getOptionValue(option);
+            const isSelected = String(optionValue) === String(value);
+
+            return (
+              <button
+                className={`custom-select-option${isSelected ? " active" : ""}`}
+                key={String(optionValue)}
+                type="button"
+                onClick={() => handleSelect(option)}
+              >
+                {formatOption(option)}
+              </button>
+            );
+          })
+        ) : (
+          <p className="custom-select-empty">No options available</p>
+        )}
+      </div>
+    </details>
+  );
 }
 
 export default function AdminCourseManager() {
@@ -89,6 +147,18 @@ export default function AdminCourseManager() {
     loadData();
   }, [search]);
 
+  useEffect(() => {
+    setPickerValues((current) => ({
+      branch: filters.branches.includes(current.branch) ? current.branch : filters.branches[0] || "",
+      semester: filters.semesters.some((semester) => String(semester) === current.semester)
+        ? current.semester
+        : String(filters.semesters[0] || ""),
+      section: filters.sections.includes(current.section) ? current.section : filters.sections[0] || "",
+      batch: filters.batches.includes(current.batch) ? current.batch : filters.batches[0] || initialForm.batchTargets[0],
+      facultyId: filters.faculty.some((member) => member.id === current.facultyId) ? current.facultyId : ""
+    }));
+  }, [filters]);
+
   function addSelection(field, value) {
     if (!value && value !== 0) {
       return;
@@ -104,6 +174,25 @@ export default function AdminCourseManager() {
     setForm((current) => ({
       ...current,
       [field]: current[field].filter((entry) => entry !== value)
+    }));
+  }
+
+  function applyJavaCourseTemplate() {
+    setForm((current) => ({
+      ...current,
+      ...javaCourseTemplate,
+      branchTargets: filters.branches.includes("CSE") ? ["CSE"] : [filters.branches[0] || branchOptions[0]],
+      semesterTargets: filters.semesters.includes(3) ? [3] : [filters.semesters[0] || 1],
+      sectionTargets: filters.sections.includes("A") ? ["A"] : [filters.sections[0] || sectionOptions[0]],
+      batchTargets: filters.batches.length > 0 ? [filters.batches[0]] : javaCourseTemplate.batchTargets,
+      facultyIds: current.facultyIds
+    }));
+    setPickerValues((current) => ({
+      ...current,
+      branch: filters.branches.includes("CSE") ? "CSE" : filters.branches[0] || branchOptions[0],
+      semester: String(filters.semesters.includes(3) ? 3 : filters.semesters[0] || 1),
+      section: filters.sections.includes("A") ? "A" : filters.sections[0] || sectionOptions[0],
+      batch: filters.batches[0] || javaCourseTemplate.batchTargets[0]
     }));
   }
 
@@ -196,6 +285,11 @@ export default function AdminCourseManager() {
       sidebarNote="Admin controls course visibility here. Students outside the selected semester, section, branch, or batch cannot see or open the course."
     >
       <PlatformSection label="Course Builder" title={editingCourseId ? "Edit course" : "Create course"}>
+        <div className="platform-section-actions">
+          <button className="auth-button admin-button panel-action-button" type="button" onClick={applyJavaCourseTemplate}>
+            Load Java course template
+          </button>
+        </div>
         <form className="auth-form course-form-grid" onSubmit={handleSubmit}>
           <div className="course-builder-top-grid">
             <input
@@ -223,22 +317,18 @@ export default function AdminCourseManager() {
             <div className="selection-card">
               <strong>Branches</strong>
               <div className="selection-inline">
-                <select
+                <PickerDropdown
                   className="filter-select"
                   value={pickerValues.branch}
-                  onChange={(event) =>
+                  placeholder="Select branch"
+                  onChange={(value) =>
                     setPickerValues((current) => ({
                       ...current,
-                      branch: event.target.value
+                      branch: value
                     }))
                   }
-                >
-                  {filters.branches.map((branch) => (
-                    <option key={branch} value={branch}>
-                      {branch}
-                    </option>
-                  ))}
-                </select>
+                  options={filters.branches}
+                />
                 <button
                   className="auth-button admin-button compact-button"
                   type="button"
@@ -266,22 +356,19 @@ export default function AdminCourseManager() {
             <div className="selection-card">
               <strong>Semesters allowed to view</strong>
               <div className="selection-inline">
-                <select
+                <PickerDropdown
                   className="filter-select"
                   value={pickerValues.semester}
-                  onChange={(event) =>
+                  placeholder="Select semester"
+                  formatOption={(semester) => `Semester ${semester}`}
+                  onChange={(value) =>
                     setPickerValues((current) => ({
                       ...current,
-                      semester: event.target.value
+                      semester: String(value)
                     }))
                   }
-                >
-                  {filters.semesters.map((semester) => (
-                    <option key={semester} value={semester}>
-                      Semester {semester}
-                    </option>
-                  ))}
-                </select>
+                  options={filters.semesters}
+                />
                 <button
                   className="auth-button admin-button compact-button"
                   type="button"
@@ -309,22 +396,19 @@ export default function AdminCourseManager() {
             <div className="selection-card">
               <strong>Sections</strong>
               <div className="selection-inline">
-                <select
+                <PickerDropdown
                   className="filter-select"
                   value={pickerValues.section}
-                  onChange={(event) =>
+                  placeholder="Select section"
+                  formatOption={(section) => `Section ${section}`}
+                  onChange={(value) =>
                     setPickerValues((current) => ({
                       ...current,
-                      section: event.target.value
+                      section: value
                     }))
                   }
-                >
-                  {filters.sections.map((section) => (
-                    <option key={section} value={section}>
-                      Section {section}
-                    </option>
-                  ))}
-                </select>
+                  options={filters.sections}
+                />
                 <button
                   className="auth-button admin-button compact-button"
                   type="button"
@@ -359,22 +443,18 @@ export default function AdminCourseManager() {
           <div className="selection-card">
             <strong>Student batches</strong>
             <div className="selection-inline">
-              <select
+              <PickerDropdown
                 className="filter-select"
                 value={pickerValues.batch}
-                onChange={(event) =>
+                placeholder="Select batch"
+                onChange={(value) =>
                   setPickerValues((current) => ({
                     ...current,
-                    batch: event.target.value
+                    batch: value
                   }))
                 }
-              >
-                {filters.batches.map((batch) => (
-                  <option key={batch} value={batch}>
-                    {batch}
-                  </option>
-                ))}
-              </select>
+                options={filters.batches}
+              />
               <button
                 className="auth-button admin-button compact-button"
                 type="button"
@@ -411,23 +491,20 @@ export default function AdminCourseManager() {
           <div className="selection-card">
             <strong>Assigned faculty</strong>
             <div className="selection-inline">
-              <select
+              <PickerDropdown
                 className="filter-select"
                 value={pickerValues.facultyId}
-                onChange={(event) =>
+                placeholder="Select faculty"
+                formatOption={(member) => `${member.fullName} (${member.email})`}
+                getOptionValue={(member) => member.id}
+                onChange={(value) =>
                   setPickerValues((current) => ({
                     ...current,
-                    facultyId: event.target.value
+                    facultyId: value
                   }))
                 }
-              >
-                <option value="">Select faculty</option>
-                {filters.faculty.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.fullName} ({member.email})
-                  </option>
-                ))}
-              </select>
+                options={filters.faculty}
+              />
               <button
                 className="auth-button admin-button compact-button"
                 type="button"
@@ -514,6 +591,9 @@ export default function AdminCourseManager() {
                   Visible only to selected students. Faculty: {course.faculty.map((member) => member.fullName).join(", ")}
                 </p>
                 <div className="platform-section-actions">
+                  <Link className="auth-button admin-button detail-link" to={`/admin/courses/${course.id}`}>
+                    Manage course
+                  </Link>
                   <button className="auth-button admin-button detail-link" type="button" onClick={() => startEdit(course)}>
                     Edit
                   </button>

@@ -1,4 +1,5 @@
 import { pool } from "../config/db.js";
+import { env } from "../config/env.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { hashPassword, signAuthToken, verifyPassword } from "../utils/auth.js";
 
@@ -48,6 +49,43 @@ async function buildUserPayload(client, user) {
   });
 }
 
+function normalizeIdentifier(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function validateCollegeEmail({ email, role, rollNumber, employeeId }) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const domainSuffix = `@${env.collegeEmailDomain}`;
+
+  if (!normalizedEmail.endsWith(domainSuffix)) {
+    return `Email must use the college domain ${env.collegeEmailDomain}.`;
+  }
+
+  const [localPart] = normalizedEmail.split("@");
+  if (!/^[a-z0-9._-]+$/.test(localPart) || !localPart.includes("_")) {
+    return "Email must follow the college format like name_identifier@college.com.";
+  }
+
+  if (role === "student") {
+    const normalizedRollNumber = normalizeIdentifier(rollNumber);
+    if (normalizedRollNumber && !normalizeIdentifier(localPart).includes(normalizedRollNumber)) {
+      return "Student email must include the student's roll number, like name_rollno@college.com.";
+    }
+  }
+
+  if (role === "faculty") {
+    const normalizedEmployeeId = normalizeIdentifier(employeeId);
+    if (normalizedEmployeeId && !normalizeIdentifier(localPart).includes(normalizedEmployeeId)) {
+      return "Faculty email must include the faculty employee ID, like name_employeeid@college.com.";
+    }
+  }
+
+  return "";
+}
+
 export const registerUser = asyncHandler(async (req, res) => {
   const { role } = req.params;
   const {
@@ -66,6 +104,12 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   if (!["admin", "faculty", "student"].includes(role)) {
     return res.status(400).json({ message: "Unsupported role." });
+  }
+
+  if (role !== "admin") {
+    return res.status(403).json({
+      message: `Only admins can create ${role} accounts.`
+    });
   }
 
   if (!fullName?.trim() || !email?.trim() || !password?.trim()) {
@@ -89,6 +133,17 @@ export const registerUser = asyncHandler(async (req, res) => {
     return res.status(400).json({
       message: "Faculty registration requires employee ID and department."
     });
+  }
+
+  const emailValidationMessage = validateCollegeEmail({
+    email,
+    role,
+    rollNumber,
+    employeeId
+  });
+
+  if (emailValidationMessage) {
+    return res.status(400).json({ message: emailValidationMessage });
   }
 
   const client = await pool.connect();

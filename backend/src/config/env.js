@@ -19,6 +19,7 @@ function parseClientUrls(value) {
 export const env = {
   port: Number(process.env.PORT) || 5000,
   clientUrls: parseClientUrls(process.env.CLIENT_URL),
+  collegeEmailDomain: (process.env.COLLEGE_EMAIL_DOMAIN || "college.com").trim().toLowerCase(),
   databaseUrl:
     process.env.DATABASE_URL ||
     "postgresql://postgres:postgres@localhost:5432/coding_platform",

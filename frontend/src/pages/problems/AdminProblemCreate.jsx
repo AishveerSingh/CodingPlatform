@@ -12,15 +12,18 @@ const initialProblemForm = {
   outputFormat: "",
   constraintsText: "",
   examplesText: "",
-  tagsText: "",
-  sampleInput: "",
-  sampleOutput: ""
+  tagsText: ""
+};
+const blankTestCase = {
+  input_data: "",
+  expected_output: ""
 };
 
 export default function AdminProblemCreate() {
   const navigate = useNavigate();
   const session = getAdminSession();
   const [problemForm, setProblemForm] = useState(initialProblemForm);
+  const [sampleTestCases, setSampleTestCases] = useState([{ ...blankTestCase }]);
   const [hiddenTestCases, setHiddenTestCases] = useState([{ input_data: "", expected_output: "" }]);
   const [status, setStatus] = useState({
     message: "",
@@ -49,16 +52,13 @@ export default function AdminProblemCreate() {
       .split(",")
       .map((tag) => tag.trim())
       .filter(Boolean);
-    const sampleTestCases =
-      problemForm.sampleInput.trim() && problemForm.sampleOutput.trim()
-        ? [
-            {
-              input_data: problemForm.sampleInput,
-              expected_output: problemForm.sampleOutput,
-              sort_order: 0
-            }
-          ]
-        : [];
+    const finalSampleCases = sampleTestCases
+      .map((tc, index) => ({
+        input_data: tc.input_data.trim(),
+        expected_output: tc.expected_output.trim(),
+        sort_order: index
+      }))
+      .filter((tc) => tc.input_data || tc.expected_output);
     const finalHiddenCases = hiddenTestCases
       .map((tc, index) => ({
         input_data: tc.input_data.trim(),
@@ -83,7 +83,7 @@ export default function AdminProblemCreate() {
           constraintsText: problemForm.constraintsText,
           examplesText: problemForm.examplesText,
           tags,
-          sampleTestCases,
+          sampleTestCases: finalSampleCases,
           hiddenTestCases: finalHiddenCases
         })
       });
@@ -99,6 +99,7 @@ export default function AdminProblemCreate() {
         error: ""
       });
       setProblemForm(initialProblemForm);
+      setSampleTestCases([{ ...blankTestCase }]);
       setHiddenTestCases([{ input_data: "", expected_output: "" }]);
 
       navigate("/admin/problems", {
@@ -231,34 +232,83 @@ export default function AdminProblemCreate() {
             rows="5"
           />
 
-          <div className="detail-grid detail-grid-tight">
-            <div>
-              <label className="form-field" htmlFor="sampleInput">
-                Sample input
-              </label>
-              <textarea
-                id="sampleInput"
-                name="sampleInput"
-                rows="5"
-                placeholder="1 2 3"
-                value={problemForm.sampleInput}
-                onChange={handleChange}
-              />
+          <div style={{ margin: "2rem 0 1rem", borderTop: "1px solid rgba(148, 163, 184, 0.12)", paddingTop: "1rem" }} />
+          <h3>Sample Test Cases</h3>
+          <p className="detail-copy" style={{ marginTop: 0 }}>
+            These public examples are visible to students before they submit.
+          </p>
+
+          {sampleTestCases.map((tc, index) => (
+            <div key={index} className="detail-grid detail-grid-tight" style={{ border: "1px solid rgba(148, 163, 184, 0.16)", borderRadius: "16px", padding: "1.2rem", marginBottom: "1rem", position: "relative" }}>
+              <div style={{ position: "absolute", top: "0.8rem", right: "0.8rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="platform-sidebar-label">Sample #{index + 1}</span>
+                {sampleTestCases.length > 1 ? (
+                  <button
+                    type="button"
+                    className="auth-button danger-button"
+                    style={{ margin: 0, padding: "0.25rem 0.6rem", fontSize: "0.75rem", borderRadius: "8px" }}
+                    onClick={() => {
+                      setSampleTestCases(sampleTestCases.filter((_, i) => i !== index));
+                    }}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+
+              <div style={{ marginTop: "1rem" }}>
+                <label className="form-field" htmlFor={`sample-input-${index}`}>
+                  Sample input
+                </label>
+                <textarea
+                  id={`sample-input-${index}`}
+                  rows="5"
+                  placeholder="1 2 3"
+                  value={tc.input_data}
+                  onChange={(event) => {
+                    const nextCases = [...sampleTestCases];
+                    nextCases[index].input_data = event.target.value;
+                    setSampleTestCases(nextCases);
+                  }}
+                />
+              </div>
+              <div style={{ marginTop: "1rem" }}>
+                <label className="form-field" htmlFor={`sample-output-${index}`}>
+                  Sample output
+                </label>
+                <textarea
+                  id={`sample-output-${index}`}
+                  rows="5"
+                  placeholder="6"
+                  value={tc.expected_output}
+                  onChange={(event) => {
+                    const nextCases = [...sampleTestCases];
+                    nextCases[index].expected_output = event.target.value;
+                    setSampleTestCases(nextCases);
+                  }}
+                />
+              </div>
             </div>
-            <div>
-              <label className="form-field" htmlFor="sampleOutput">
-                Sample output
-              </label>
-              <textarea
-                id="sampleOutput"
-                name="sampleOutput"
-                rows="5"
-                placeholder="6"
-                value={problemForm.sampleOutput}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
+          ))}
+
+          <button
+            type="button"
+            className="auth-button ghost-button"
+            style={{
+              marginTop: "0.5rem",
+              background: "transparent",
+              border: "1px solid rgba(148, 163, 184, 0.24)",
+              color: "#f8fafc",
+              padding: "0.6rem 1.2rem",
+              fontSize: "0.9rem",
+              borderRadius: "999px"
+            }}
+            onClick={() => {
+              setSampleTestCases([...sampleTestCases, { ...blankTestCase }]);
+            }}
+          >
+            + Add Sample Test Case
+          </button>
 
           <div style={{ margin: "2rem 0 1rem", borderTop: "1px solid rgba(148, 163, 184, 0.12)", paddingTop: "1rem" }} />
           <h3>Hidden Test Cases (Admin Only)</h3>

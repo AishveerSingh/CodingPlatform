@@ -1,5 +1,6 @@
 import { pool } from "../config/db.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { executeSubmission } from "../utils/codeExecution.js";
 
 function normalizeStringArray(values, formatter = (value) => value) {
   if (!Array.isArray(values)) {
@@ -184,6 +185,81 @@ function mapAssignmentRow(row, includeSubmissionDetails = false) {
     createdAt: row.created_at,
     ...(includeSubmissionDetails ? { submissions: row.submissions || [] } : {})
   };
+}
+
+function normalizeCourseProblemExecutionPayload(body) {
+  return {
+    language: body.language?.trim()?.toLowerCase() || "",
+    sourceCode: body.sourceCode?.trim() || ""
+  };
+}
+
+function normalizeCourseProblemTestCases(rawCases) {
+  if (!Array.isArray(rawCases)) {
+    return [];
+  }
+
+  return rawCases
+    .map((entry, index) => ({
+      input_data: entry?.input_data ?? "",
+      expected_output: entry?.expected_output ?? "",
+      sort_order: typeof entry?.sort_order === "number" ? entry.sort_order : index
+    }))
+    .filter((entry) => entry.input_data.trim() || entry.expected_output.trim());
+}
+
+async function replaceCourseProblemTestCases(client, problemId, testCases, isSample) {
+  await client.query("DELETE FROM course_problem_test_cases WHERE course_problem_id = $1 AND is_sample = $2", [
+    problemId,
+    isSample
+  ]);
+
+  for (const testCase of testCases) {
+    await client.query(
+      `
+        INSERT INTO course_problem_test_cases (course_problem_id, input_data, expected_output, is_sample, sort_order)
+        VALUES ($1, $2, $3, $4, $5)
+      `,
+      [problemId, testCase.input_data, testCase.expected_output, isSample, testCase.sort_order]
+    );
+  }
+}
+
+async function fetchCourseProblemTestCases(client, problemIds, includeHidden) {
+  if (!problemIds.length) {
+    return new Map();
+  }
+
+  const values = [problemIds];
+  const hiddenFilter = includeHidden ? "" : "AND is_sample = TRUE";
+  const result = await client.query(
+    `
+      SELECT id, course_problem_id, input_data, expected_output, is_sample, sort_order
+      FROM course_problem_test_cases
+      WHERE course_problem_id = ANY($1::uuid[])
+      ${hiddenFilter}
+      ORDER BY is_sample DESC, sort_order ASC, created_at ASC
+    `,
+    values
+  );
+
+  const map = new Map();
+  result.rows.forEach((row) => {
+    const entry = map.get(row.course_problem_id) || {
+      sampleTestCases: [],
+      hiddenTestCases: []
+    };
+
+    if (row.is_sample) {
+      entry.sampleTestCases.push(row);
+    } else {
+      entry.hiddenTestCases.push(row);
+    }
+
+    map.set(row.course_problem_id, entry);
+  });
+
+  return map;
 }
 
 export const getCourseFilters = asyncHandler(async (_req, res) => {
@@ -416,7 +492,7 @@ export const getCourseById = asyncHandler(async (req, res) => {
     );
     const problemsResult = await client.query(
       `
-        SELECT id, title, statement, difficulty, created_at
+        SELECT id, title, statement, input_format, output_format, constraints_text, examples_text, difficulty, created_at
         FROM course_coding_problems
         WHERE course_id = $1
         ORDER BY created_at DESC
@@ -491,11 +567,79 @@ export const getCourseById = asyncHandler(async (req, res) => {
       }));
     }
 
+    const includeHiddenCourseCases = req.currentUser.role === "admin" || req.currentUser.role === "faculty";
+    const courseProblemTestCaseMap = await fetchCourseProblemTestCases(
+      client,
+      problemsResult.rows.map((row) => row.id),
+      includeHiddenCourseCases
+    );
+
+    let codingProblems = problemsResult.rows.map((row) => {
+      const testCases = courseProblemTestCaseMap.get(row.id) || {
+        sampleTestCases: [],
+        hiddenTestCases: []
+      };
+
+      return {
+        ...row,
+        sampleTestCases: testCases.sampleTestCases,
+        hiddenTestCases: includeHiddenCourseCases ? testCases.hiddenTestCases : [],
+        submissions: []
+      };
+    });
+
+    if (codingProblems.length > 0) {
+      const problemSubmissionResult = await client.query(
+        `
+          SELECT
+            cps.id,
+            cps.course_problem_id,
+            cps.language,
+            cps.source_code,
+            cps.status,
+            cps.passed_test_cases,
+            cps.total_test_cases,
+            cps.execution_time_ms,
+            cps.memory_kb,
+            cps.compiler_output,
+            cps.submitted_at
+          FROM course_problem_submissions cps
+          WHERE cps.student_id = $1
+            AND cps.course_problem_id = ANY($2::uuid[])
+          ORDER BY cps.submitted_at DESC
+        `,
+        [req.currentUser.id, codingProblems.map((problem) => problem.id)]
+      );
+
+      const submissionMap = new Map();
+      problemSubmissionResult.rows.forEach((row) => {
+        const current = submissionMap.get(row.course_problem_id) || [];
+        current.push({
+          id: row.id,
+          language: row.language,
+          sourceCode: row.source_code,
+          status: row.status,
+          passedTestCases: row.passed_test_cases,
+          totalTestCases: row.total_test_cases,
+          executionTimeMs: row.execution_time_ms,
+          memoryKb: row.memory_kb,
+          compilerOutput: row.compiler_output,
+          submittedAt: row.submitted_at
+        });
+        submissionMap.set(row.course_problem_id, current);
+      });
+
+      codingProblems = codingProblems.map((problem) => ({
+        ...problem,
+        submissions: submissionMap.get(problem.id) || []
+      }));
+    }
+
     res.json({
       course: {
         ...courseCard,
         materials: materialsResult.rows,
-        codingProblems: problemsResult.rows,
+        codingProblems,
         assignments,
         students
       }
@@ -524,21 +668,235 @@ export const addCourseMaterial = asyncHandler(async (req, res) => {
 });
 
 export const addCourseCodingProblem = asyncHandler(async (req, res) => {
-  const { title, statement, difficulty } = req.body;
+  const {
+    title,
+    statement,
+    difficulty,
+    inputFormat = "",
+    outputFormat = "",
+    constraintsText = "",
+    examplesText = "",
+    sampleTestCases = [],
+    hiddenTestCases = []
+  } = req.body;
 
   if (!title?.trim() || !statement?.trim()) {
     return res.status(400).json({ message: "Coding problem title and statement are required." });
   }
 
-  await pool.query(
-    `
-      INSERT INTO course_coding_problems (course_id, title, statement, difficulty, created_by)
-      VALUES ($1, $2, $3, $4, $5)
-    `,
-    [req.course.id, title.trim(), statement.trim(), difficulty?.trim()?.toLowerCase() || "medium", req.currentUser.id]
-  );
+  const normalizedSampleTestCases = normalizeCourseProblemTestCases(sampleTestCases);
+  const normalizedHiddenTestCases = normalizeCourseProblemTestCases(hiddenTestCases);
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `
+        INSERT INTO course_coding_problems (
+          course_id,
+          title,
+          statement,
+          input_format,
+          output_format,
+          constraints_text,
+          examples_text,
+          difficulty,
+          created_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id
+      `,
+      [
+        req.course.id,
+        title.trim(),
+        statement.trim(),
+        inputFormat.trim() || null,
+        outputFormat.trim() || null,
+        constraintsText.trim() || null,
+        examplesText.trim() || null,
+        difficulty?.trim()?.toLowerCase() || "medium",
+        req.currentUser.id
+      ]
+    );
+
+    await replaceCourseProblemTestCases(client, result.rows[0].id, normalizedSampleTestCases, true);
+    await replaceCourseProblemTestCases(client, result.rows[0].id, normalizedHiddenTestCases, false);
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 
   res.status(201).json({ message: "Coding problem created successfully." });
+});
+
+export const runCourseCodingProblem = asyncHandler(async (req, res) => {
+  const payload = normalizeCourseProblemExecutionPayload(req.body);
+
+  if (!payload.language || !payload.sourceCode) {
+    return res.status(400).json({
+      message: "Language and source code are required."
+    });
+  }
+
+  const problemResult = await pool.query(
+    `
+      SELECT id
+      FROM course_coding_problems
+      WHERE id = $1 AND course_id = $2
+    `,
+    [req.params.problemId, req.course.id]
+  );
+
+  if (problemResult.rows.length === 0) {
+    return res.status(404).json({ message: "Course coding problem not found." });
+  }
+
+  const sampleTestCaseResult = await pool.query(
+    `
+      SELECT id, input_data, expected_output, is_sample, sort_order
+      FROM course_problem_test_cases
+      WHERE course_problem_id = $1
+        AND is_sample = TRUE
+      ORDER BY sort_order ASC, created_at ASC
+    `,
+    [req.params.problemId]
+  );
+
+  const executionResult = await executeSubmission({
+    language: payload.language,
+    sourceCode: payload.sourceCode,
+    testCases:
+      sampleTestCaseResult.rows.length > 0
+        ? sampleTestCaseResult.rows
+        : [
+            {
+              id: "course-problem-run",
+              input_data: "",
+              expected_output: "",
+              is_sample: true,
+              sort_order: 0
+            }
+          ]
+  });
+
+  res.json({
+    message: "Course problem code executed.",
+    result: {
+      ...executionResult,
+      language: payload.language
+    }
+  });
+});
+
+export const submitCourseCodingProblem = asyncHandler(async (req, res) => {
+  const payload = normalizeCourseProblemExecutionPayload(req.body);
+
+  if (!payload.language || !payload.sourceCode) {
+    return res.status(400).json({
+      message: "Language and source code are required."
+    });
+  }
+
+  const problemResult = await pool.query(
+    `
+      SELECT id
+      FROM course_coding_problems
+      WHERE id = $1 AND course_id = $2
+    `,
+    [req.params.problemId, req.course.id]
+  );
+
+  if (problemResult.rows.length === 0) {
+    return res.status(404).json({ message: "Course coding problem not found." });
+  }
+
+  const allTestCaseResult = await pool.query(
+    `
+      SELECT id, input_data, expected_output, is_sample, sort_order
+      FROM course_problem_test_cases
+      WHERE course_problem_id = $1
+      ORDER BY is_sample DESC, sort_order ASC, created_at ASC
+    `,
+    [req.params.problemId]
+  );
+
+  const executionResult = await executeSubmission({
+    language: payload.language,
+    sourceCode: payload.sourceCode,
+    testCases:
+      allTestCaseResult.rows.length > 0
+        ? allTestCaseResult.rows
+        : [
+            {
+              id: "course-problem-submit",
+              input_data: "",
+              expected_output: "",
+              is_sample: true,
+              sort_order: 0
+            }
+          ]
+  });
+
+  const result = await pool.query(
+    `
+      INSERT INTO course_problem_submissions (
+        course_problem_id,
+        student_id,
+        language,
+        source_code,
+        status,
+        passed_test_cases,
+        total_test_cases,
+        execution_time_ms,
+        memory_kb,
+        compiler_output
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING
+        id,
+        course_problem_id,
+        student_id,
+        language,
+        source_code,
+        status,
+        passed_test_cases,
+        total_test_cases,
+        execution_time_ms,
+        memory_kb,
+        compiler_output,
+        submitted_at
+    `,
+    [
+      req.params.problemId,
+      req.currentUser.id,
+      payload.language,
+      payload.sourceCode,
+      executionResult.status,
+      executionResult.passedTestCases,
+      executionResult.totalTestCases,
+      executionResult.executionTimeMs,
+      executionResult.memoryKb,
+      executionResult.compilerOutput
+    ]
+  );
+
+  res.status(201).json({
+    message: "Course problem submitted successfully.",
+    submission: result.rows[0],
+    execution: {
+      errorType: executionResult.errorType ?? null,
+      verdictLabel: executionResult.verdictLabel ?? result.rows[0].status,
+      stdout: executionResult.stdout ?? "",
+      stderr: executionResult.stderr ?? "",
+      executionTimeMs: executionResult.executionTimeMs ?? 0
+    },
+    testCaseResults: executionResult.testCaseResults ?? []
+  });
 });
 
 export const getCourseStudents = asyncHandler(async (req, res) => {

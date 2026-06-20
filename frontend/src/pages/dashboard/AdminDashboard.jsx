@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const user = session?.user;
   const [problems, setProblems] = useState([]);
   const [students, setStudents] = useState([]);
+  const [faculty, setFaculty] = useState([]);
   const [logs, setLogs] = useState([]);
   const [problemStatus, setProblemStatus] = useState({
     loading: true,
@@ -25,10 +26,15 @@ export default function AdminDashboard() {
     loading: true,
     error: ""
   });
+  const [facultyStatus, setFacultyStatus] = useState({
+    loading: true,
+    error: ""
+  });
 
   useEffect(() => {
     loadProblems();
     loadStudents();
+    loadFaculty();
     loadLogs();
   }, [session?.token]);
 
@@ -48,6 +54,41 @@ export default function AdminDashboard() {
       });
     } catch (error) {
       setProblemStatus({
+        loading: false,
+        error: error.message
+      });
+    }
+  }
+
+  async function loadFaculty() {
+    if (!session?.token) {
+      setFaculty([]);
+      setFacultyStatus({
+        loading: false,
+        error: "Log in as an admin to view faculty."
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/users?role=faculty`, {
+        headers: {
+          ...getAuthHeaders(session.token)
+        }
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to load faculty.");
+      }
+
+      setFaculty(data);
+      setFacultyStatus({
+        loading: false,
+        error: ""
+      });
+    } catch (error) {
+      setFacultyStatus({
         loading: false,
         error: error.message
       });
@@ -160,6 +201,11 @@ export default function AdminDashboard() {
             note: "Registered student accounts"
           },
           {
+            label: "Faculty",
+            value: faculty.length,
+            note: "Assigned teaching accounts"
+          },
+          {
             label: "Recent logs",
             value: logs.length,
             note: "Latest tracked admin events"
@@ -205,6 +251,22 @@ export default function AdminDashboard() {
       </PlatformSection>
 
       <PlatformSection
+        label="Faculty Accounts"
+        title="Create faculty login credentials"
+        actions={
+          <Link className="auth-button admin-button panel-action-button" to="/admin/faculty">
+            Manage faculty
+          </Link>
+        }
+      >
+        <p className="dashboard-copy">
+          Admin assigns college email IDs and passwords to faculty accounts before they can log in.
+        </p>
+        {facultyStatus.error ? <p className="form-status error">{facultyStatus.error}</p> : null}
+        {facultyStatus.loading ? <p className="dashboard-copy">Loading faculty...</p> : null}
+      </PlatformSection>
+
+      <PlatformSection
         label="Student Directory"
         title="Review students and submission health"
         actions={
@@ -214,8 +276,7 @@ export default function AdminDashboard() {
         }
       >
         <p className="dashboard-copy">
-          Drill into student activity the same way contest and interview platforms expose candidate
-          performance summaries.
+          Admin also assigns student college emails and passwords here before learners can access the portal.
         </p>
         {studentStatus.error ? <p className="form-status error">{studentStatus.error}</p> : null}
         {studentStatus.loading ? <p className="dashboard-copy">Loading students...</p> : null}

@@ -4,14 +4,8 @@ import { saveStudentSession } from "../../utils/session";
 import { apiRequest } from "../../utils/api";
 
 const initialForm = {
-  fullName: "",
   email: "",
-  password: "",
-  rollNumber: "",
-  branch: "CSE",
-  semester: 1,
-  section: "A",
-  batch: "2024-2028"
+  password: ""
 };
 const studentHighlights = [
   "Structured problem statements",
@@ -21,7 +15,6 @@ const studentHighlights = [
 
 export default function StudentLogin() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState("login");
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState({
     type: "",
@@ -46,43 +39,14 @@ export default function StudentLogin() {
       message: ""
     });
 
-    const authPayload =
-      mode === "register"
-        ? form
-        : {
-            email: form.email,
-            password: form.password
-          };
-
     try {
-      let data;
-
-      try {
-        data = await apiRequest(
-          mode === "register" ? "/auth/register/student" : "/auth/login/student",
-          {
-            method: "POST",
-            body: JSON.stringify(authPayload)
-          }
-        );
-      } catch (error) {
-        data = await apiRequest(
-          mode === "register" ? "/users/student-register" : "/users/student-login",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              fullName: form.fullName,
-              email: form.email,
-              password: form.password,
-              rollNumber: form.rollNumber,
-              branch: form.branch,
-              semester: form.semester,
-              section: form.section,
-              batch: form.batch
-            })
-          }
-        );
-      }
+      const data = await apiRequest("/auth/login/student", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password
+        })
+      });
 
       const session = {
         token: data.token,
@@ -148,97 +112,19 @@ export default function StudentLogin() {
       <section className="auth-panel student-panel auth-entry-panel">
         <div className="auth-form-panel-header">
           <p className="auth-kicker">Student Access</p>
-          <h1>{mode === "register" ? "Register" : "Log in"}</h1>
+          <h1>Log in</h1>
           <p className="auth-form-panel-copy">
-            {mode === "register"
-              ? "Create your student account to start solving problems."
-              : "Continue to your practice dashboard and coding workspace."}
+            Continue to your practice dashboard and coding workspace using the credentials assigned by your admin.
           </p>
-        </div>
-
-        <div className="auth-switcher" role="tablist" aria-label="Student auth mode">
-          <button
-            className={`auth-switcher-button ${mode === "login" ? "active student-accent" : ""}`}
-            type="button"
-            onClick={() => setMode("login")}
-          >
-            Log in
-          </button>
-          <button
-            className={`auth-switcher-button ${mode === "register" ? "active student-accent" : ""}`}
-            type="button"
-            onClick={() => setMode("register")}
-          >
-            Register
-          </button>
         </div>
 
         <div className="auth-form-card">
           <div className="auth-form-card-topline">
-            <span>{mode === "register" ? "New student profile" : "Secure student sign in"}</span>
-            <strong>{mode === "register" ? "Account setup" : "Welcome back"}</strong>
+            <span>Secure student sign in</span>
+            <strong>Welcome back</strong>
           </div>
 
           <form className="auth-form auth-form-portal" onSubmit={handleSubmit}>
-            {mode === "register" ? (
-              <>
-                <label className="form-field" htmlFor="fullName">
-                  Full name
-                </label>
-                <input
-                  id="fullName"
-                  name="fullName"
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={form.fullName}
-                  onChange={handleChange}
-                  required
-                />
-
-                <label className="form-field" htmlFor="rollNumber">
-                  Roll number
-                </label>
-                <input
-                  id="rollNumber"
-                  name="rollNumber"
-                  type="text"
-                  placeholder="Enter your roll number"
-                  value={form.rollNumber}
-                  onChange={handleChange}
-                  required
-                />
-
-                <label className="form-field" htmlFor="branch">
-                  Branch
-                </label>
-                <input id="branch" name="branch" type="text" value={form.branch} onChange={handleChange} required />
-
-                <label className="form-field" htmlFor="semester">
-                  Semester
-                </label>
-                <input
-                  id="semester"
-                  name="semester"
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={form.semester}
-                  onChange={handleChange}
-                  required
-                />
-
-                <label className="form-field" htmlFor="section">
-                  Section
-                </label>
-                <input id="section" name="section" type="text" value={form.section} onChange={handleChange} required />
-
-                <label className="form-field" htmlFor="batch">
-                  Batch
-                </label>
-                <input id="batch" name="batch" type="text" value={form.batch} onChange={handleChange} required />
-              </>
-            ) : null}
-
             <label className="form-field" htmlFor="email">
               Email
             </label>
@@ -267,11 +153,7 @@ export default function StudentLogin() {
             />
 
             <button className="auth-button student-button auth-submit-wide" type="submit" disabled={isSubmitting}>
-              {isSubmitting
-                ? "Saving..."
-                : mode === "register"
-                  ? "Create student account"
-                  : "Enter student dashboard"}
+              {isSubmitting ? "Signing in..." : "Enter student dashboard"}
             </button>
           </form>
 
@@ -279,7 +161,7 @@ export default function StudentLogin() {
 
           <div className="auth-form-footer-note">
             <span className="auth-form-footer-dot" />
-            <p>Protected session access for the student workspace</p>
+            <p>Student accounts are created by admin with a college email and password</p>
           </div>
         </div>
       </section>

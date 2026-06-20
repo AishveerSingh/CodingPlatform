@@ -17,6 +17,34 @@ export default function StudentCourseDetails() {
   const [submissionForms, setSubmissionForms] = useState({});
   const [submitStatus, setSubmitStatus] = useState({});
 
+  function applyOptimisticAssignmentSubmission(assignmentId) {
+    setData((currentData) => {
+      if (!currentData) {
+        return currentData;
+      }
+
+      return {
+        ...currentData,
+        assignments: currentData.assignments.map((assignment) =>
+          assignment.id === assignmentId
+            ? {
+                ...assignment,
+                submissions: [
+                  {
+                    id: `${assignmentId}-latest`,
+                    submittedAt: new Date().toISOString(),
+                    grade: null,
+                    feedback: "",
+                    status: "submitted"
+                  }
+                ]
+              }
+            : assignment
+        )
+      };
+    });
+  }
+
   useEffect(() => {
     let isMounted = true;
 
@@ -57,6 +85,8 @@ export default function StudentCourseDetails() {
         },
         session?.token
       );
+
+      applyOptimisticAssignmentSubmission(assignmentId);
 
       setSubmitStatus((current) => ({
         ...current,
@@ -180,19 +210,27 @@ export default function StudentCourseDetails() {
             </div>
           </PlatformSection>
 
-          <PlatformSection label="Coding Problems" title="Practice inside this course">
+          <PlatformSection label="Coding Problems" title="Course questions">
             {data.codingProblems.length === 0 ? <p className="dashboard-copy">No course coding problems yet.</p> : null}
-            <div className="history-list">
-              {data.codingProblems.map((problem) => (
-                <article className="history-card" key={problem.id}>
-                  <div className="question-card-top">
-                    <span className={`difficulty-pill ${problem.difficulty}`}>{problem.difficulty}</span>
-                  </div>
-                  <strong>{problem.title}</strong>
-                  <p>{problem.statement}</p>
-                </article>
-              ))}
-            </div>
+            {data.codingProblems.length > 0 ? (
+              <div className="question-list">
+                {data.codingProblems.map((problem) => (
+                  <Link
+                    className="question-card question-link-card"
+                    key={problem.id}
+                    to={`/student/courses/${courseId}/problems/${problem.id}`}
+                  >
+                    <div className="question-card-top">
+                      <span className={`difficulty-pill ${problem.difficulty}`}>{problem.difficulty}</span>
+                      <span className="question-meta">{problem.sampleTestCases?.length || 0} sample cases</span>
+                    </div>
+                    <h3>{problem.title}</h3>
+                    <p>{problem.statement}</p>
+                    <span className="question-cta">Open workspace</span>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
           </PlatformSection>
 
           <Link className="auth-button student-button detail-link" to="/student/courses">

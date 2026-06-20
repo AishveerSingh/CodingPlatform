@@ -2,9 +2,21 @@ const STUDENT_STORAGE_KEY = "coding_platform_student";
 const ADMIN_STORAGE_KEY = "coding_platform_admin";
 const FACULTY_STORAGE_KEY = "coding_platform_faculty";
 
+function safeParseSession(storedValue) {
+  if (!storedValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(storedValue);
+    return parsedValue && typeof parsedValue === "object" ? parsedValue : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
 function readSession(storageKey) {
-  const stored = localStorage.getItem(storageKey);
-  return stored ? JSON.parse(stored) : null;
+  return safeParseSession(localStorage.getItem(storageKey));
 }
 
 function writeSession(storageKey, session) {
