@@ -12,7 +12,7 @@ dotenv.config({
 function parseClientUrls(value) {
   return (value || "http://localhost:5173")
     .split(",")
-    .map((entry) => entry.trim())
+    .map((entry) => entry.trim().replace(/\/$/, ""))
     .filter(Boolean);
 }
 
@@ -23,7 +23,9 @@ export const env = {
   databaseUrl:
     process.env.DATABASE_URL ||
     "postgresql://postgres:postgres@localhost:5432/coding_platform",
-  pgSsl: process.env.PGSSL === "true",
+  pgSsl:
+    process.env.PGSSL === "true" ||
+    String(process.env.DATABASE_URL || "").includes("neon.tech"),
   jwtSecret: process.env.JWT_SECRET || "development-jwt-secret-change-me",
   judge0BaseUrl: (process.env.JUDGE0_BASE_URL || "https://ce.judge0.com").trim(),
   judge0ApiKey: (process.env.JUDGE0_API_KEY || "").trim(),

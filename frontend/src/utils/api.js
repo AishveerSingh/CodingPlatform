@@ -1,6 +1,6 @@
 import { getAuthHeaders } from "./session";
 
-export const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+export const apiBaseUrl = import.meta.env.VITE_API_URL || "https://codingplatform-qf38.onrender.com/api";
 
 function normalizeRequestError(error, fallbackMessage = "Request failed.") {
   const rawMessage = String(error?.message || fallbackMessage);
@@ -31,7 +31,8 @@ export async function apiRequest(path, options = {}, token) {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data.message || "Request failed.");
+      const errorMsg = data.error ? `${data.message} (${data.error})` : (data.message || "Request failed.");
+      throw new Error(errorMsg);
     }
 
     return data;

@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { PlatformLayout, PlatformSection, PlatformStats } from "../../components/PlatformLayout";
 import { getAuthHeaders, getStudentSession } from "../../utils/session";
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiBaseUrl = import.meta.env.VITE_API_URL || "https://codingplatform-qf38.onrender.com/api";
 const defaultProgress = [
   {
     difficulty: "easy",
