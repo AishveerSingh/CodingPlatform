@@ -128,6 +128,32 @@ export default function AdminFacultyList() {
     }
   }
 
+  async function handleDeleteFaculty(facultyId, fullName) {
+    if (!window.confirm(`Are you sure you want to permanently delete faculty member "${fullName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/users/${facultyId}`, {
+        method: "DELETE",
+        headers: {
+          ...getAuthHeaders(session?.token)
+        }
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to delete faculty account.");
+      }
+
+      alert(data.message || "Faculty account deleted successfully.");
+      // Refresh list
+      setFaculty((prev) => prev.filter((f) => f.id !== facultyId));
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
   return (
     <PlatformLayout
       role="admin"
@@ -244,6 +270,23 @@ export default function AdminFacultyList() {
                   {member.profile?.employee_id || "No employee ID"} | {member.profile?.department || "-"} |{" "}
                   {member.profile?.designation || "-"}
                 </p>
+                <div style={{ marginTop: "1rem" }}>
+                  <button
+                    className="auth-button ghost-button detail-link inline-link-button"
+                    type="button"
+                    style={{
+                      width: "100%",
+                      marginTop: 0,
+                      background: "rgba(239, 68, 68, 0.08)",
+                      border: "1px solid rgba(239, 68, 68, 0.2)",
+                      color: "#fca5a5",
+                      textAlign: "center"
+                    }}
+                    onClick={() => handleDeleteFaculty(member.id, member.full_name)}
+                  >
+                    Delete Faculty
+                  </button>
+                </div>
               </article>
             ))}
           </div>

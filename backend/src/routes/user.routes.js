@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   changeCurrentUserPassword,
+  deleteUser,
   getAccessibleStudentById,
   getAccessibleStudents,
   getCurrentUser,
@@ -35,5 +36,6 @@ userRouter.get("/students/accessible/:studentId", requireAuth, requireMongoUser,
 userRouter.get("/", requireAuth, requireRole("admin"), getUsers);
 userRouter.get("/:userId", requireAuth, requireRole("admin"), getUserById);
 userRouter.put("/:userId/reset-password", requireAuth, requireRole("admin"), resetStudentPassword);
+userRouter.delete("/:userId", requireAuth, requireRole("admin"), deleteUser);
 
 export default userRouter;

@@ -120,6 +120,33 @@ export default function AdminStudentList() {
     }
   }
 
+  async function handleDeleteStudent(studentId, fullName) {
+    if (!window.confirm(`Are you sure you want to permanently delete student "${fullName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/users/${studentId}`, {
+        method: "DELETE",
+        headers: {
+          ...getAuthHeaders(session?.token)
+        }
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to delete student account.");
+      }
+
+      alert(data.message || "Student account deleted successfully.");
+      // Refresh list
+      setStudents((prev) => prev.filter((s) => s.id !== studentId));
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+
 
   function handleExpiredAdminSession(message = "Your admin session expired. Please log in again.") {
     clearAdminSession();
@@ -380,6 +407,23 @@ export default function AdminStudentList() {
                         }}
                       >
                         {activeResetStudentId === student.id ? "Cancel" : "Reset Password"}
+                      </button>
+                    </div>
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <button
+                        className="auth-button ghost-button detail-link inline-link-button"
+                        type="button"
+                        style={{
+                          width: "100%",
+                          marginTop: 0,
+                          background: "rgba(239, 68, 68, 0.08)",
+                          border: "1px solid rgba(239, 68, 68, 0.2)",
+                          color: "#fca5a5",
+                          textAlign: "center"
+                        }}
+                        onClick={() => handleDeleteStudent(student.id, student.full_name)}
+                      >
+                        Delete Student
                       </button>
                     </div>
 

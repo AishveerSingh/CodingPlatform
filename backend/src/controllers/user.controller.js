@@ -803,3 +803,80 @@ export function registerFaculty(req, res, next) {
 export function loginFaculty(req, res, next) {
   return loginUser(req, res, next, "faculty");
 }
+
+export async function deleteUser(req, res, next) {
+  const { userId } = req.params;
+
+  try {
+    const userResult = await pool.query(
+      `
+        SELECT id, role, full_name, email
+        FROM users
+        WHERE id = $1
+      `,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        message: "User not found."
+      });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    if (!["student", "faculty"].includes(targetUser.role)) {
+      return res.status(400).json({
+        message: "Only student and faculty accounts can be deleted."
+      });
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      // Log the action first
+      await client.query(
+        `
+          INSERT INTO admin_logs (admin_id, action_type, target_type, target_id, details)
+          VALUES ($1, $2, $3, $4, $5)
+        `,
+        [
+          req.auth.userId,
+          "delete_user",
+          "user",
+          userId,
+          JSON.stringify({
+            email: targetUser.email,
+            full_name: targetUser.full_name,
+            role: targetUser.role
+          })
+        ]
+      );
+
+      // Now delete the user
+      await client.query(
+        `
+          DELETE FROM users
+          WHERE id = $1
+        `,
+        [userId]
+      );
+
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.json({
+      message: `${targetUser.role.charAt(0).toUpperCase() + targetUser.role.slice(1)} account for ${targetUser.full_name} has been deleted successfully.`
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
