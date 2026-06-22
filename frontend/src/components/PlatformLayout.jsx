@@ -62,9 +62,9 @@ export function PlatformLayout({
       <aside className="platform-sidebar">
         <Link className="platform-brand" to="/">
           <span className="platform-brand-mark">
-            {role === "admin" ? "CT Admin" : role === "faculty" ? "CT Faculty" : "CT Student"}
+            {role === "admin" ? "ProCoder Admin" : role === "faculty" ? "ProCoder Faculty" : "ProCoder Student"}
           </span>
-          <strong>CodeTantra Style Portal</strong>
+          <strong>ProCoder Platform</strong>
         </Link>
 
         <div className="platform-sidebar-copy">
@@ -93,20 +93,7 @@ export function PlatformLayout({
           ))}
           <button
             onClick={handleLogout}
-            className="platform-nav-item"
-            style={{
-              marginTop: "2rem",
-              textAlign: "left",
-              cursor: "pointer",
-              width: "100%",
-              background: "rgba(239, 68, 68, 0.08)",
-              borderColor: "rgba(239, 68, 68, 0.2)",
-              color: "#fca5a5",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              gap: "0.5rem"
-            }}
+            className="platform-nav-item platform-logout-btn"
           >
             <svg
               width="16"

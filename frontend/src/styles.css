@@ -3020,47 +3020,70 @@ body,
 [data-theme="light"] {
   color-scheme: light;
   color: #0f172a;
-  background:
-    radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 28%),
-    linear-gradient(135deg, #f8fafc, #e2e8f0 46%, #dbeafe);
+  background: #f1f5f9;
 }
 
 [data-theme="light"] body,
 [data-theme="light"] #root {
   color: #0f172a;
-  background: transparent;
+  background: #f1f5f9;
 }
 
 [data-theme="light"] .theme-toggle-button {
-  background: rgba(255, 255, 255, 0.92);
+  background: #ffffff;
   color: #0f172a;
-  border-color: rgba(148, 163, 184, 0.28);
+  border-color: #cbd5e1;
 }
 
 [data-theme="light"] .theme-toggle-copy small {
-  color: #64748b;
+  color: #475569;
 }
 
 [data-theme="light"] .landing-page,
+[data-theme="light"] .auth-page,
 [data-theme="light"] .student-auth-page,
 [data-theme="light"] .admin-auth-page,
+[data-theme="light"] .dashboard-page,
 [data-theme="light"] .student-dashboard-page,
 [data-theme="light"] .admin-dashboard-page,
+[data-theme="light"] .platform-page,
 [data-theme="light"] .student-platform-page,
 [data-theme="light"] .admin-platform-page,
+[data-theme="light"] .faculty-platform-page,
+[data-theme="light"] .detail-page,
 [data-theme="light"] .student-detail-page,
 [data-theme="light"] .admin-detail-page {
-  background:
-    radial-gradient(circle at top left, rgba(14, 165, 233, 0.1), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.08), transparent 24%),
-    linear-gradient(145deg, #f8fafc, #eef2ff 46%, #e0f2fe);
+  background: #f1f5f9 !important;
+}
+
+[data-theme="light"] .platform-brand {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .platform-brand strong {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .platform-brand-mark,
+[data-theme="light"] .platform-sidebar-label,
+[data-theme="light"] .platform-eyebrow,
+[data-theme="light"] .platform-section-label {
+  color: #0284c7 !important;
+}
+
+[data-theme="light"] .platform-sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .platform-sidebar-copy h2 {
+  color: #0f172a !important;
 }
 
 [data-theme="light"] .auth-panel,
 [data-theme="light"] .dashboard-card,
 [data-theme="light"] .detail-card,
 [data-theme="light"] .detail-block,
-[data-theme="light"] .platform-sidebar,
 [data-theme="light"] .platform-hero,
 [data-theme="light"] .platform-section-card,
 [data-theme="light"] .landing-hero,
@@ -3075,19 +3098,65 @@ body,
 [data-theme="light"] .history-card,
 [data-theme="light"] .platform-stat-card,
 [data-theme="light"] .landing-role-card {
-  background: rgba(255, 255, 255, 0.84);
-  border-color: rgba(148, 163, 184, 0.24);
-  box-shadow: 0 16px 42px rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   color: #0f172a;
 }
 
 [data-theme="light"] .student-workspace-card {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.94)),
-    #ffffff;
+  background: #ffffff;
 }
 
-[data-theme="light"] .platform-nav-item,
+[data-theme="light"] .platform-nav-item {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #475569 !important;
+}
+
+[data-theme="light"] .platform-nav-item:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .platform-nav-item.active {
+  background: #f1f5f9 !important;
+  color: #0284c7 !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Logout Button styling for light and dark modes */
+.platform-logout-btn {
+  margin-top: 2rem !important;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  background: rgba(239, 68, 68, 0.08) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+}
+
+.platform-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.16) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-theme="light"] .platform-logout-btn {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  color: #dc2626 !important;
+}
+
+[data-theme="light"] .platform-logout-btn:hover {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+}
+
 [data-theme="light"] .workspace-arrow,
 [data-theme="light"] .workspace-meta-chip,
 [data-theme="light"] .auth-switcher,
@@ -3467,3 +3536,75 @@ body,
     align-items: stretch;
   }
 }
+
+/* Custom In-App Modal Styles */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.custom-modal {
+  width: min(440px, calc(100% - 2rem));
+  background: #111827;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 28px;
+  padding: 2rem;
+  box-shadow: 0 24px 64px rgba(2, 6, 23, 0.5);
+  text-align: center;
+  color: #f8fafc;
+  animation: slideUp 0.15s ease-out;
+}
+
+[data-theme="light"] .custom-modal {
+  background: #ffffff;
+  border-color: #fca5a5;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Custom Danger Button Styles for cards */
+.platform-danger-btn {
+  width: 100%;
+  margin-top: 0 !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+  text-align: center;
+}
+
+.platform-danger-btn:hover {
+  background: rgba(239, 68, 68, 0.16) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-theme="light"] .platform-danger-btn {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  color: #dc2626 !important;
+}
+
+[data-theme="light"] .platform-danger-btn:hover {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+}
+

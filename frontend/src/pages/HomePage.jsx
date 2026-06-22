@@ -24,7 +24,7 @@ export default function HomePage() {
     <main className="landing-page">
       <section className="landing-shell">
         <div className="landing-hero">
-          <p className="landing-kicker">Coding Platform</p>
+          <p className="landing-kicker">ProCoder Platform</p>
           <h1>Train, review, and manage coding workflows in a workspace inspired by modern challenge platforms.</h1>
           <p className="landing-copy">
             Choose whether you are a student, faculty member, or admin, then move into a role-based

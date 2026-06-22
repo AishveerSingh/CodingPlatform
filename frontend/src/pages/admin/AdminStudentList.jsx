@@ -36,6 +36,17 @@ export default function AdminStudentList() {
   const [resetStatus, setResetStatus] = useState({ message: "", error: "" });
   const [isResetting, setIsResetting] = useState(false);
 
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    show: false,
+    userId: null,
+    userName: null,
+    role: "student",
+    isDeleting: false,
+    statusMessage: "",
+    statusType: ""
+  });
+
+
   async function handleCreateStudent(event) {
     event.preventDefault();
     setIsCreating(true);
@@ -120,13 +131,22 @@ export default function AdminStudentList() {
     }
   }
 
-  async function handleDeleteStudent(studentId, fullName) {
-    if (!window.confirm(`Are you sure you want to permanently delete student "${fullName}"? This action cannot be undone.`)) {
-      return;
-    }
+  function handleDeleteStudent(studentId, fullName) {
+    setDeleteConfirm({
+      show: true,
+      userId: studentId,
+      userName: fullName,
+      role: "student",
+      isDeleting: false,
+      statusMessage: "",
+      statusType: ""
+    });
+  }
 
+  async function confirmDeleteStudent() {
+    setDeleteConfirm((prev) => ({ ...prev, isDeleting: true }));
     try {
-      const response = await fetch(`${apiBaseUrl}/users/${studentId}`, {
+      const response = await fetch(`${apiBaseUrl}/users/${deleteConfirm.userId}`, {
         method: "DELETE",
         headers: {
           ...getAuthHeaders(session?.token)
@@ -138,12 +158,33 @@ export default function AdminStudentList() {
         throw new Error(data.message || "Failed to delete student account.");
       }
 
-      alert(data.message || "Student account deleted successfully.");
-      // Refresh list
-      setStudents((prev) => prev.filter((s) => s.id !== studentId));
+      setStudents((prev) => prev.filter((s) => s.id !== deleteConfirm.userId));
+      setDeleteConfirm((prev) => ({
+        ...prev,
+        isDeleting: false,
+        statusMessage: data.message || "Student account deleted successfully.",
+        statusType: "success"
+      }));
     } catch (error) {
-      alert(error.message);
+      setDeleteConfirm((prev) => ({
+        ...prev,
+        isDeleting: false,
+        statusMessage: error.message,
+        statusType: "error"
+      }));
     }
+  }
+
+  function closeDeleteModal() {
+    setDeleteConfirm({
+      show: false,
+      userId: null,
+      userName: null,
+      role: "student",
+      isDeleting: false,
+      statusMessage: "",
+      statusType: ""
+    });
   }
 
 
@@ -411,16 +452,8 @@ export default function AdminStudentList() {
                     </div>
                     <div style={{ marginTop: "0.5rem" }}>
                       <button
-                        className="auth-button ghost-button detail-link inline-link-button"
+                        className="auth-button ghost-button detail-link inline-link-button platform-danger-btn"
                         type="button"
-                        style={{
-                          width: "100%",
-                          marginTop: 0,
-                          background: "rgba(239, 68, 68, 0.08)",
-                          border: "1px solid rgba(239, 68, 68, 0.2)",
-                          color: "#fca5a5",
-                          textAlign: "center"
-                        }}
                         onClick={() => handleDeleteStudent(student.id, student.full_name)}
                       >
                         Delete Student
@@ -482,6 +515,79 @@ export default function AdminStudentList() {
           </>
         ) : null}
       </PlatformSection>
+
+      {deleteConfirm.show && (
+        <div className="custom-modal-overlay">
+          <div className="custom-modal">
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "50%",
+                background: "rgba(239, 68, 68, 0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto",
+                color: "#ef4444"
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+                </svg>
+              </div>
+            </div>
+            
+            {deleteConfirm.statusMessage ? (
+              <>
+                <h2 style={{ fontSize: "1.35rem", margin: "0 0 0.5rem" }}>
+                  {deleteConfirm.statusType === "success" ? "Success" : "Error"}
+                </h2>
+                <p style={{ color: deleteConfirm.statusType === "success" ? "#10b981" : "#ef4444", marginBottom: "1.5rem" }}>
+                  {deleteConfirm.statusMessage}
+                </p>
+                <button
+                  className="auth-button admin-button"
+                  style={{ width: "100%", marginTop: 0 }}
+                  onClick={closeDeleteModal}
+                >
+                  Okay
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 style={{ fontSize: "1.35rem", margin: "0 0 0.5rem" }}>Delete Student</h2>
+                <p style={{ opacity: 0.8, marginBottom: "1.5rem", fontSize: "0.95rem" }}>
+                  Are you sure you want to permanently delete student <strong>{deleteConfirm.userName}</strong>? This action will cascade delete all associated profiles, enrollments, and submissions.
+                </p>
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <button
+                    className="auth-button ghost-button"
+                    style={{ flex: 1, marginTop: 0, border: "1px solid rgba(148, 163, 184, 0.3)" }}
+                    onClick={closeDeleteModal}
+                    disabled={deleteConfirm.isDeleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="auth-button"
+                    style={{
+                      flex: 1,
+                      marginTop: 0,
+                      background: "#ef4444",
+                      borderColor: "#ef4444",
+                      color: "#ffffff"
+                    }}
+                    onClick={confirmDeleteStudent}
+                    disabled={deleteConfirm.isDeleting}
+                  >
+                    {deleteConfirm.isDeleting ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </PlatformLayout>
   );
 }
